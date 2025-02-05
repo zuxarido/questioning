@@ -1,0 +1,7 @@
+Get Nomic API installed
+Create Conversational Models using LLama and Deepseek api 
+Create Auth System with memory storage
+Create OCR
+Figure out how to deploy it using RESTAPI and flask 
+figure out how to deploy the website
+success
