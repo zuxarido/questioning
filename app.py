@@ -4,6 +4,8 @@ from PyPDF2 import PdfReader
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.vectorstores import FAISS
+import os
+from nomic import atlas
 
 # Function to extract text from uploaded PDF files
 def getpdftext(pdf_docs):
@@ -28,15 +30,25 @@ def gettextchunks(raw_text):
 # Function to generate vector embeddings from text chunks
 # I DO NOT LIKE THIS AT ALL NOT ONE BIT ABHI FIGURING OUT HOW TO INTEGRATE NOMIC API IN THIS YE MODEL LUND SE SLOW HAI ISS MODEL KI MAA KI CHUT MERE LAPTOP KI BHI MAA KI CHUT 
 # 10 MB KI PDF KO BSDK EMBED KARNE MAI 15 MINUTE LAGE HAI
+# testing out nomic integration and if it is working at a decent enough pace or not
 def getvector(text):      
     try:
-        embeddings = HuggingFaceInstructEmbeddings(
-            model_name="sentence-transformers/all-mpnet-base-v2",  # Model for embeddings
-            model_kwargs={"device": "cpu"}  # Run on CPU
+        # Load API key
+        NOMIC_API_KEY = os.getenv('nk-nBZ4TcOKyJbQiD-AOYmvhxMgdPMvZq8Eu5ZodTUP9n8')
+        if not NOMIC_API_KEY:
+            raise ValueError("NOMIC_API_KEY not found in environment variables")
+            
+        # Create embeddings using Nomic
+        embeddings = atlas.map_text(
+            text=text,
+            model_name="nomic-embed-text-v1",
+            api_key=nk-nBZ4TcOKyJbQiD-AOYmvhxMgdPMvZq8Eu5ZodTUP9n8
         )
-        # Create FAISS vector store from text chunks
+        
+        # Create FAISS vector store
         vector_store = FAISS.from_texts(texts=text, embedding=embeddings)
         return vector_store
+        
     except Exception as e:
         st.error(f"Error creating embeddings: {str(e)}")
         return None
