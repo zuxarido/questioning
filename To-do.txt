@@ -1,5 +1,5 @@
-Get Nomic API installed - it is good but confusing how to deploy becuase command line se api key login kara hai
-Create Conversational Models using LLama and Deepseek api 
+Get Nomic API installed - it is good but confusing how to deploy becuase command line se api key login kara hai, also something has fucked up i am unable to figure out why please figure out kya maa chudwa raha hai KARIYO YE FIGURE OUT
+Create Conversational Models using LLama and Deepseek api - **DOING THIS RN**
 Create Auth System with memory storage
 Create OCR
 Figure out how to deploy it using RESTAPI and flask 
