@@ -1,4 +1,4 @@
-Get Nomic API installed
+Get Nomic API installed - *maza nahi aaya bilkul bhi, need to figure out another free embedding api model*
 Create Conversational Models using LLama and Deepseek api 
 Create Auth System with memory storage
 Create OCR
