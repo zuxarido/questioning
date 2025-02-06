@@ -1,4 +1,5 @@
-Get Nomic API installed - it is good but confusing how to deploy becuase command line se api key login kara hai, also something has fucked up i am unable to figure out why please figure out kya maa chudwa raha hai KARIYO YE FIGURE OUT
+Get Nomic API installed - it is good but confusing how to deploy becuase command line se api key login kara hai, also something has fucked up i am unable to figure out why please figure out kya maa chudwa raha hai
+kxee has recommended using llama index with issi nomic ke saath
 Create Conversational Models using LLama and Deepseek api - **DOING THIS RN**
 Create Auth System with memory storage
 Create OCR
