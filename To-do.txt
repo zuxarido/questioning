@@ -1,4 +1,4 @@
-Get Nomic API installed - *maza nahi aaya bilkul bhi, need to figure out another free embedding api model*
+Get Nomic API installed - it is good but confusing how to deploy becuase command line se api key login kara hai
 Create Conversational Models using LLama and Deepseek api 
 Create Auth System with memory storage
 Create OCR
