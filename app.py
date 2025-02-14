@@ -8,6 +8,10 @@ from nomic import embed
 from langchain.embeddings.base import Embeddings
 from typing import List
 import fitz  # PyMuPDF
+from langchain.memory import ConversationBufferMemory
+from langchain.chains import ConversationalRetrievalChain
+from langchain.llms import OpenAI
+import requests
 
 # Load environment variables
 load_dotenv()
@@ -104,76 +108,95 @@ def getvector(text_chunks):
         st.error(f"Error creating vector store: {e}")
         return None
 
+def inject_custom_css():
+    st.markdown("""
+        <style>
+            /* ... (your CSS styles here) ... */
+        </style>
+    """, unsafe_allow_html=True)
 
+def display_message(is_user: bool, content: str):
+    message_type = "user" if is_user else "assistant"
+    avatar_letter = "U" if is_user else "A"
+
+    message_html = f"""
+        <div class="chat-message {message_type}-message">
+            <div class="avatar {message_type}-avatar">{avatar_letter}</div>
+            <div class="message-content">{content}</div>
+        </div>
+    """
+    st.markdown(message_html, unsafe_allow_html=True)
+
+def get_conversation_chain(vector_store):  # Correctly sets up the chain
+    llm = OpenAI(temperature=0)  # Or your preferred LLM
+    memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+    chain = ConversationalRetrievalChain.from_llm(
+        llm=llm,
+        retriever=vector_store.as_retriever(),  # Use the vector store's retriever
+        memory=memory,
+    )
+    return chain
 
 def main():
     st.set_page_config(page_title="Question.io", page_icon=":shark:", layout="wide")
+    inject_custom_css()
+
     st.title("Question.io")
     st.header("Ask questions and get AI Sourced Explanations for your Documents")
 
-    query = st.text_input("Enter your question here")
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
 
     with st.sidebar:
-        st.title("Sidebar")
-        st.write("Your Documents")
+        st.title("Document Upload")
         pdf_docs = st.file_uploader("Upload your PDFs", type=["pdf"], accept_multiple_files=True)
 
-        if st.button("Submit Documents"):
+        if st.button("Process Documents"):
             with st.spinner("Processing documents..."):
                 text_chunks = process_pdf_and_chunk(pdf_docs)
-
                 if text_chunks:
-                    st.write(f"Number of text chunks: {len(text_chunks)}")
-                    for i, chunk in enumerate(text_chunks):
-                        st.write(f"Chunk {i+1} length: {len(chunk)}")
-                    st.success("Documents processed successfully!")
+                    st.success(f"Processed {len(text_chunks)} chunks successfully!")
                     st.session_state.text_chunks = text_chunks
                 else:
                     st.error("Document processing failed.")
 
-    if st.button("Ask Question") and query:
-        if "text_chunks" in st.session_state and st.session_state.text_chunks:
-            with st.spinner("Searching for answer..."):
-                vector_store = getvector(st.session_state.text_chunks)
+    st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
 
-                if vector_store:
-                    nomic_embeddings = NomicEmbeddings()
-                    query_embedding = nomic_embeddings.embed_query(query)
+    for message in st.session_state.chat_history:
+        display_message(is_user=message["role"] == "user", content=message["content"])
 
-                    docs_and_scores = vector_store.similarity_search_with_score(query_embedding)
+    query = st.text_input("Ask a question about your documents:", key="query_input")
 
-                    if docs_and_scores:
-                        highest_score = docs_and_scores[0][1]
-                        SIMILARITY_THRESHOLD = 0.5  # Adjust as needed
-
-                        context = ""
-                        for doc, score in docs_and_scores:
-                            context += doc.page_content + "\n\n"
-
-                        prompt = f"""Context:
-                        {context}
-
-                        Question: {query}
-
-                        Answer:"""
-
-                        if highest_score < SIMILARITY_THRESHOLD:
-                            st.warning(f"Your question is likely outside the scope of the provided documents. The highest similarity score is {highest_score:.2f}, which is below the threshold of {SIMILARITY_THRESHOLD}.")
-                        else:
-                            st.write(prompt) # print the prompt
-                            # No LLM call in this version - you'll add that back in
-                            st.write("Answer will go here (LLM not integrated in this version).")
-
-                    else:
-                        st.warning("No relevant information found in the documents for your question.")
-                else:
-                    st.error("Could not create vector store. Check document processing steps.")
-
-        else:
+    if st.button("Send") and query:
+        if "text_chunks" not in st.session_state:
             st.warning("Please upload and process documents first.")
+            return
 
-    elif query:
-        st.info("Please click 'Ask Question' to get results.")
+        st.session_state.chat_history.append({"role": "user", "content": query})
+        display_message(is_user=True, content=query)
+
+        with st.spinner("Thinking..."):
+            vector_store = getvector(st.session_state.text_chunks)
+
+            if vector_store:
+                chain = get_conversation_chain(vector_store)  # Get the chain!
+
+                try:
+                    result = chain({"question": query})
+                    answer = result['answer']
+
+                    st.session_state.chat_history.append({"role": "assistant", "content": answer})
+                    display_message(is_user=False, content=answer)
+
+                    st.session_state.query_input = ""
+                except Exception as e:
+                    st.error(f"Error generating response: {e}")
+                    st.session_state.chat_history.append({"role": "assistant", "content": "I encountered an error. Please try again."})
+                    display_message(is_user=False, content="I encountered an error. Please try again.")
+            else:
+                st.error("Could not process your question. Please try again.")
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
 if __name__ == '__main__':
     main()
