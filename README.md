@@ -1,6 +1,6 @@
 # Document Q&A Assistant
 
-![Project Banner](https://via.placeholder.com/1200x400.png?text=Document+Q%26A+Assistant)  
+
 *A Retrieval-Augmented Generation (RAG) system for querying document content using natural language processing.*
 
 ---
@@ -48,12 +48,13 @@ The **Document Q&A Assistant** is an advanced tool designed to process and query
 1. Clone the Repository:  
    ```bash
    git clone https://github.com/jaskaransngh/DocQnA.git
-   cd DocQnA
+   
 
 
 Install Dependencies:
 
-"pip install -r requirements.txt"
+```bash
+pip install -r requirements.txt
 
 
 Configure Environment Variables:
