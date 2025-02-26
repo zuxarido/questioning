@@ -45,10 +45,10 @@ The **Document Q&A Assistant** is an advanced tool designed to process and query
 ---
 
 ## Installation
-1. Clone the Repository:  
+Clone the Repository:  
    ```bash
    git clone https://github.com/jaskaransngh/DocQnA.git
-   
+   ```
 
 
 Install Dependencies:
