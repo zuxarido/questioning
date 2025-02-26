@@ -1,9 +1,11 @@
-streamlit
+flask
 python-dotenv
-PyPDF2
 langchain
 langchain-groq
 langchain-pinecone
+streamlit
 pinecone-client
-fitz  # PyMuPDF
-huggingface-embeddings  
+PyPDF2
+PyMuPDF
+pillow
+requests
