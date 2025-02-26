@@ -1,0 +1,846 @@
+import streamlit as st
+# Set page config must be the first Streamlit command
+st.set_page_config(
+    page_title="Document Q&A Assistant",
+    page_icon="📚",
+    layout="wide"
+)
+
+from typing import List, Dict, Any, Optional, Tuple
+from dotenv import load_dotenv
+from PyPDF2 import PdfReader
+from langchain.text_splitter import CharacterTextSplitter, RecursiveCharacterTextSplitter
+import os
+from langchain_community.embeddings.huggingface import HuggingFaceEmbeddings
+from langchain_groq import ChatGroq
+from langchain.prompts import ChatPromptTemplate
+from langchain_pinecone import PineconeVectorStore
+from pinecone import Pinecone
+import fitz
+import logging
+import traceback
+import re
+from pathlib import Path
+import time
+from datetime import datetime
+from langchain.chains import RetrievalQA
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, RemoveMessage
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import START, MessagesState, StateGraph
+from langchain_pinecone import PineconeVectorStore
+from langchain_groq import ChatGroq
+from utils.file_processor import FilePreprocessor
+import requests
+import uuid
+from PIL import Image
+import io
+import base64
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
+
+# Load environment variables
+load_dotenv()
+
+# Configure logging with both file and console handlers
+def setup_logging() -> None:
+    """Configure logging to both file and console with proper formatting"""
+    log_dir = Path("logs")
+    log_dir.mkdir(exist_ok=True)
+    
+    log_file = log_dir / f"app_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+    
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_file),
+            logging.StreamHandler()
+        ]
+    )
+
+logger = logging.getLogger(__name__)
+
+class APIKeyManager:
+    """Manages API keys and their validation"""
+    
+    REQUIRED_KEYS = [
+        'PINECONE_API_KEY',
+        'PINECONE_ENVIRONMENT',
+        'GROQ_API_KEY',
+        'HUGGINGFACE_API_KEY'
+    ]
+    
+    @staticmethod
+    def load_and_validate() -> Dict[str, str]:
+        """Load and validate all required API keys"""
+        load_dotenv()
+        
+        keys = {}
+        missing_keys = []
+        
+        for key_name in APIKeyManager.REQUIRED_KEYS:
+            key_value = os.getenv(key_name)
+            if not key_value:
+                missing_keys.append(key_name)
+            keys[key_name] = key_value
+            
+        if missing_keys:
+            error_msg = f"Missing required API keys: {', '.join(missing_keys)}"
+            logger.error(error_msg)
+            st.error(error_msg)
+            st.stop()
+            
+        return keys
+
+class TextProcessor:
+    """Handles text cleaning and processing operations"""
+    
+    @staticmethod
+    def clean_text(text: str) -> str:
+        """Clean and normalize text content"""
+        cleaning_steps = [
+            (r"[\[\{\<].*?[\]\}\>]", ""),  # Remove brackets and their contents
+            (r"\s+", " "),                  # Normalize whitespace
+            ("\t", " "),                    # Replace tabs
+            (u'\xa0', ' '),                 # Replace non-breaking spaces
+            (u'\u200b', '')                 # Remove zero-width spaces
+        ]
+        
+        for pattern, replacement in cleaning_steps:
+            text = re.sub(pattern, replacement, text)
+            
+        return text.encode("ascii", "ignore").decode().strip()
+    
+    @staticmethod
+    def create_chunks(text: str) -> List[str]:
+        try:
+            if not text.strip():
+                st.warning("No text to process")
+                return []
+                
+            # Create chunks with smaller size and more overlap for better retrieval
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=500,
+                chunk_overlap=100,
+                length_function=len,
+                separators=["\n\n", "\n", " ", ""]
+            )
+            
+            chunks = text_splitter.split_text(text)
+            
+            # Debug info
+            st.info(f"Created {len(chunks)} chunks from document")
+            if chunks:
+                st.info(f"Sample chunk: {chunks[0]}")
+            
+            return chunks
+        except Exception as e:
+            logger.error(f"Error creating chunks: {str(e)}")
+            logger.error(traceback.format_exc())
+            st.error(f"Error creating chunks: {str(e)}")
+            return []
+
+class PDFProcessor:
+    """Handles PDF document processing"""
+    
+    @staticmethod
+    def extract_text(pdf_docs: List[Any]) -> str:
+        """Extract text from multiple PDF documents"""
+        combined_text = []
+        
+        for pdf in pdf_docs:
+            try:
+                # Try PyPDF2 first
+                text = PDFProcessor._extract_with_pypdf2(pdf)
+                if not text.strip():
+                    # If PyPDF2 fails to extract meaningful text, try PyMuPDF
+                    text = PDFProcessor._extract_with_pymupdf(pdf)
+                combined_text.append(text)
+            except Exception as e:
+                logger.error(f"Failed to process PDF {pdf.name}: {str(e)}")
+                st.error(f"Error processing {pdf.name}. Please check if the file is corrupted.")
+                continue
+                
+        return " ".join(combined_text)
+    
+    @staticmethod
+    def _extract_with_pypdf2(pdf: Any) -> str:
+        """Extract text using PyPDF2"""
+        pdf_reader = PdfReader(pdf)
+        return " ".join(page.extract_text() for page in pdf_reader.pages)
+    
+    @staticmethod
+    def _extract_with_pymupdf(pdf: Any) -> str:
+        """Extract text using PyMuPDF"""
+        pdf.seek(0)
+        doc = fitz.open(stream=pdf.read(), filetype="pdf")
+        text = " ".join(page.get_text() for page in doc)
+        doc.close()
+        return text
+
+class VectorStore:
+    """Class to handle vector store operations"""
+    
+    @staticmethod
+    def initialize() -> Optional[PineconeVectorStore]:
+        try:
+            # Force CPU mode
+            os.environ['CUDA_VISIBLE_DEVICES'] = ''
+            
+            # Use the correct embedding model that matches your Pinecone index dimensions
+            embeddings = HuggingFaceEmbeddings(
+                model_name="sentence-transformers/bert-base-nli-mean-tokens",  # 768 dimensions
+                model_kwargs={'device': 'cpu'},
+                encode_kwargs={'normalize_embeddings': True},
+                cache_folder="./models"
+            )
+            
+            pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+            index = pc.Index("ragshi")
+            
+            return PineconeVectorStore(
+                index=index,
+                embedding=embeddings,
+                text_key="text"
+            )
+        except Exception as e:
+            logger.error(f"Vector store initialization failed: {str(e)}")
+            logger.error(traceback.format_exc())
+            return None
+    
+    @staticmethod
+    def add_texts(vector_store: PineconeVectorStore, texts: List[str], session_id: str) -> bool:
+        try:
+            if not vector_store:
+                st.error("Vector store not initialized")
+                return False
+                
+            if not texts:
+                st.error("No text to add to vector store")
+                return False
+                
+            # Add session_id to metadata for each chunk
+            metadatas = [{"session_id": session_id} for _ in texts]
+            
+            # Debug info
+            st.info(f"Adding {len(texts)} chunks to vector store with session_id: {session_id}")
+            if texts:
+                st.info(f"First chunk sample: {texts[0][:100]}...")
+            
+            # Add texts to vector store - THIS IS THE KEY PART
+            ids = [f"{session_id}_{i}" for i in range(len(texts))]
+            vector_store.add_texts(texts=texts, metadatas=metadatas, ids=ids)
+            
+            st.success(f"Added {len(texts)} chunks to Pinecone with session ID: {session_id}")
+            
+            # Verify documents were added by directly querying Pinecone
+            try:
+                # Get the underlying Pinecone index
+                index = vector_store._index
+                
+                # Query for documents with this session_id
+                query_response = index.query(
+                    vector=[0] * 768,  # Dummy vector for metadata-only query
+                    filter={"session_id": session_id},
+                    top_k=1,
+                    include_metadata=True
+                )
+                
+                if query_response.matches:
+                    st.success(f"Verified documents in Pinecone: Found {len(query_response.matches)} matches")
+                    return True
+                else:
+                    st.warning("No documents found in Pinecone after upload. This may indicate an issue with the vector store.")
+                    return False
+                
+            except Exception as e:
+                st.warning(f"Could not verify documents in Pinecone: {str(e)}")
+                # Still return True as we attempted to add the documents
+                return True
+                
+        except Exception as e:
+            logger.error(f"Failed to add texts: {str(e)}")
+            logger.error(traceback.format_exc())
+            st.error(f"Failed to add texts: {str(e)}")
+            return False
+    
+    @staticmethod
+    def cleanup_session():
+        """Clean up the current session's vectors"""
+        try:
+            if 'session_id' in st.session_state:
+                pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+                index = pc.Index("ragshi")
+                
+                # Get vector IDs for this session
+                query_response = index.query(
+                    vector=[0.0] * 768,  # dummy vector
+                    filter={"session_id": {"$eq": st.session_state.session_id}},
+                    top_k=10000,  # adjust based on your needs
+                    include_metadata=False
+                )
+                
+                # Delete vectors by IDs
+                if query_response.matches:
+                    vector_ids = [match.id for match in query_response.matches]
+                    index.delete(ids=vector_ids)
+                
+                logger.info(f"Cleaned up session: {st.session_state.session_id}")
+                del st.session_state.session_id
+                
+        except Exception as e:
+            logger.error(f"Error cleaning up session: {str(e)}")
+            logger.error(traceback.format_exc())
+
+class QAChain:
+    """Class to handle QA chain creation and execution"""
+    
+    def __init__(self):
+        self.llm = ChatGroq(
+            api_key=os.getenv("GROQ_API_KEY"),
+            model_name="mixtral-8x7b-32768"
+        )
+        
+        self.prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are a helpful assistant that answers questions based on the provided context.
+            If the answer cannot be found in the context, say "I couldn't find any relevant information in the documents."
+            
+            Context: {context}"""),
+            ("human", "{question}")
+        ])
+    
+    def get_response(self, question: str, session_id: str) -> str:
+        try:
+            if not question.strip():
+                return "Please enter a question."
+                
+            # Get the vector store
+            vector_store = VectorStore.initialize()
+            if not vector_store:
+                return "Vector store initialization failed. Please check logs."
+            
+            # Debug: Check if documents exist for this session
+            st.info(f"Searching for documents with session_id: {session_id}")
+            
+            # Create the retriever with session filter
+            retriever = vector_store.as_retriever(
+                search_kwargs={
+                    "filter": {"session_id": session_id},
+                    "k": 4
+                }
+            )
+            
+            # Debug: Get and display retrieved documents
+            docs = retriever.get_relevant_documents(question)
+            st.info(f"Retrieved {len(docs)} documents for question: '{question}'")
+            
+            if not docs:
+                return "I couldn't find any relevant information in the documents. Please check if the document was properly uploaded."
+            
+            # Display retrieved chunks for debugging
+            with st.expander("View retrieved chunks"):
+                for i, doc in enumerate(docs):
+                    st.markdown(f"**Chunk {i+1}:**")
+                    st.text(doc.page_content)
+                    st.markdown("---")
+            
+            # Create the chain
+            qa_chain = (
+                {"context": retriever, "question": RunnablePassthrough()}
+                | self.prompt
+                | self.llm
+                | StrOutputParser()
+            )
+            
+            # Get response
+            response = qa_chain.invoke(question)
+            
+            if not response.strip():
+                return "I couldn't generate a response. Please try a different question."
+                
+            return response
+        except Exception as e:
+            logger.error(f"Error in QA chain: {str(e)}")
+            logger.error(traceback.format_exc())
+            return f"Error: {str(e)}"
+
+class StreamlitUI:
+    """Manages the Streamlit user interface"""
+    
+    def __init__(self):
+        self.initialize_session_state()
+        
+    @staticmethod
+    def initialize_session_state() -> None:
+        """Initialize session state variables"""
+        defaults = {
+            'chat_history': [],
+            'processed_files': set(),
+            'vector_store': None,
+            'session_id': None,
+            'conversation_memory': None
+        }
+        
+        for key, value in defaults.items():
+            if key not in st.session_state:
+                st.session_state[key] = value
+    
+    def render_header(self):
+       
+        st.title("Question.io")
+            
+    def render_sidebar(self) -> Optional[List[Any]]:  # Restored render_sidebar
+        """Render the sidebar with file upload functionality."""
+        with st.sidebar:
+            st.title("Document Upload")
+            pdf_docs = st.file_uploader(
+                "Upload your PDFs",
+                type=["pdf"],
+                accept_multiple_files=True,
+                help="Upload one or more PDF documents to analyze"
+            )
+
+            if pdf_docs:
+                new_files = [
+                    doc for doc in pdf_docs if doc.name not in st.session_state.processed_files
+                ]
+
+                if new_files:
+                    if st.button("Process New Documents"):
+                        return new_files
+
+                elif pdf_docs and not new_files and st.session_state.processed_files:
+                    st.write("All uploaded documents have been processed. Please upload new files.")
+
+        return None
+    
+    def display_chat_history(self) -> None:
+        """Display chat history with styled bubbles and scrolling."""
+        if st.session_state.chat_history:
+            for role, message in st.session_state.chat_history:
+                with st.container():
+                    message_class = "user-message" if role == "human" else "ai-message"
+                    st.markdown(
+                        f"""
+                        <div class="{message_class}">
+                            <div class="message-content">
+                                {message}
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+            st.markdown(
+                """
+                <style>
+                .user-message, .ai-message {
+                    background-color: #36454F; /* Light gray for both */
+                    padding: 10px;
+                    margin-bottom: 5px;
+                    border-radius: 10px; /* Rounded corners */
+                    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2); /* Subtle shadow */
+                    max-width: 80%; /* Limit message width */
+                    float: right; /* User messages to the right */
+                    clear: both; /* Clear floats */
+                }
+
+                .ai-message {
+                    float: left; /* AI messages to the left */
+                }
+
+                .message-content {
+                    word-wrap: break-word;
+                }
+
+                .chat-container {
+                    overflow-y: auto;
+                    max-height: 500px;
+                }
+                </style>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            # Optional: Chat Container with Scrolling (as before)
+            st.markdown("<div class='chat-container'>", unsafe_allow_html=True)  # Open container
+            for role, message in st.session_state.chat_history: # Put the messages in the container
+                # ... (message display code from above)
+                pass # Replace with message display code
+            st.markdown("</div>", unsafe_allow_html=True)  # Close container
+
+            # Optional: Auto-scroll (as before)
+            js = f"""
+                <script>
+                    const chatContainer = document.querySelector('.chat-container');
+                    if (chatContainer) {{
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                    }}
+                </script>
+            """
+            st.components.v1.html(js, height=0)
+
+class DocumentProcessor:
+    """Class to handle document processing"""
+    
+    @staticmethod
+    def process_ocr(file) -> Optional[str]:
+        """Process file with OCR service"""
+        try:
+            # Preprocess file
+            chunks = FilePreprocessor.preprocess_file(file)
+            if not chunks:
+                return None
+            
+            text_parts = []
+            with st.progress(0) as progress_bar:
+                for i, chunk in enumerate(chunks):
+                    # Update progress
+                    progress = (i + 1) / len(chunks)
+                    progress_bar.progress(progress)
+                    st.write(f"Processing chunk {i+1} of {len(chunks)}...")
+                    
+                    # Process chunk
+                    try:
+                        response = requests.post(
+                            'api/ocr',
+                            json=chunk,
+                            timeout=30
+                        )
+                        
+                        if response.status_code == 200:
+                            chunk_text = response.json().get('text', '')
+                            if chunk_text:
+                                if chunk['type'] == 'pdf':
+                                    text_parts.append(f"Pages {chunk['start_page']}-{chunk['end_page']}:\n{chunk_text}")
+                                else:
+                                    text_parts.append(chunk_text)
+                        else:
+                            logger.error(f"Chunk processing error: {response.json().get('error', 'Unknown error')}")
+                            
+                    except Exception as e:
+                        logger.error(f"Error processing chunk: {str(e)}")
+                        continue
+            
+            return "\n\n".join(text_parts) if text_parts else None
+                
+        except Exception as e:
+            logger.error(f"Error processing OCR: {str(e)}")
+            logger.error(traceback.format_exc())
+            return None
+    
+    @staticmethod
+    def get_text_chunks(text: str) -> List[str]:
+        """Split text into chunks"""
+        try:
+            # Split text into chunks of ~1000 characters
+            chunks = []
+            current_chunk = []
+            current_size = 0
+            
+            for line in text.split('\n'):
+                if current_size + len(line) > 1000:
+                    chunks.append('\n'.join(current_chunk))
+                    current_chunk = [line]
+                    current_size = len(line)
+                else:
+                    current_chunk.append(line)
+                    current_size += len(line)
+            
+            if current_chunk:
+                chunks.append('\n'.join(current_chunk))
+            
+            return chunks
+            
+        except Exception as e:
+            logger.error(f"Error chunking text: {str(e)}")
+            return []
+
+class FilePreprocessor:
+    @staticmethod
+    def process_file(uploaded_file) -> str:
+        try:
+            st.info(f"Processing file: {uploaded_file.name} ({uploaded_file.type})")
+            
+            if uploaded_file.type == "application/pdf":
+                # Use PyMuPDF for better text extraction
+                pdf_bytes = uploaded_file.getvalue()
+                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                
+                text_parts = []
+                for page_num in range(len(doc)):
+                    page = doc[page_num]
+                    text = page.get_text()
+                    
+                    if text.strip():
+                        text_parts.append(f"Page {page_num + 1}:\n{text}")
+                    else:
+                        st.warning(f"Page {page_num + 1} has no extractable text")
+                
+                full_text = "\n\n".join(text_parts)
+                
+                # Debug info
+                st.success(f"Extracted {len(text_parts)} pages of text")
+                if full_text:
+                    st.info(f"Sample text: {full_text[:200]}...")
+                else:
+                    st.error("No text extracted from PDF")
+                
+                return full_text
+            
+            elif uploaded_file.type == "text/plain":
+                text = uploaded_file.getvalue().decode("utf-8")
+                st.success(f"Extracted {len(text)} characters from text file")
+                return text
+            
+            else:
+                st.error(f"Unsupported file type: {uploaded_file.type}")
+                return ""
+                
+        except Exception as e:
+            logger.error(f"Error processing file: {str(e)}")
+            logger.error(traceback.format_exc())
+            st.error(f"Error processing file: {str(e)}")
+            return ""
+
+def init_session_state():
+    """Initialize session state variables"""
+    if 'chat_history' not in st.session_state:
+        st.session_state.chat_history = []
+    if 'processed_files' not in st.session_state:
+        st.session_state.processed_files = set()
+    if 'vector_store' not in st.session_state:
+        st.session_state.vector_store = None
+    if 'session_id' not in st.session_state:
+        st.session_state.session_id = str(uuid.uuid4())
+    if 'use_ocr' not in st.session_state:
+        st.session_state.use_ocr = False
+    if 'file_processor' not in st.session_state:
+        st.session_state.file_processor = FilePreprocessor()  # Initialize the file processor once
+
+def main():
+    """Main application function"""
+    try:
+        setup_logging()
+        init_session_state()
+        
+        # Custom CSS
+        st.markdown("""
+            <style>
+            .stApp {
+                max-width: 1200px;
+                margin: 0 auto;
+            }
+            .upload-section {
+                border: 2px dashed #4CAF50;
+                border-radius: 10px;
+                padding: 20px;
+                margin: 20px 0;
+            }
+            .stChatMessage {
+                animation: fadeIn 0.5s ease-in;
+            }
+            
+            .stChatMessage p {
+                color: white !important;
+            }
+            
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            
+            .stTextInput input {
+                font-size: 1.1rem;
+                line-height: 1.5;
+            }
+            
+            .stMarkdown p {
+                font-size: 1.1rem;
+                line-height: 1.6;
+            }
+
+            /* Make chat bubbles more visible */
+            .stChatMessage [data-testid="chatMessage"] {
+                background-color: rgba(240, 242, 246, 0.1) !important;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+        
+        # Sidebar
+        with st.sidebar:
+            st.header("📁 Document Management")
+            
+            # OCR Toggle
+            st.session_state.use_ocr = st.toggle(
+                "Enable OCR Processing",
+                help="Turn on OCR to extract text from images and scanned PDFs",
+                value=st.session_state.use_ocr
+            )
+            
+            st.divider()
+            
+            # Show processed files
+            if st.session_state.processed_files:
+                st.subheader("📚 Processed Documents:")
+                for file in st.session_state.processed_files:
+                    st.write(f"📄 {file}")
+            else:
+                st.info("No documents processed yet")
+            
+            # Clear documents button
+            if st.button("🗑️ Clear All Documents", type="secondary"):
+                VectorStore.cleanup_session()
+                st.session_state.processed_files = set()
+                st.session_state.chat_history = []
+                st.success("Cleared all documents and chat history!")
+                st.rerun()
+        
+        # Main content
+        st.title("🤖 Document Q&A Assistant")
+        
+        # Upload section
+        st.markdown("### 📤 Upload Documents")
+        with st.container():
+            st.markdown('<div class="upload-section">', unsafe_allow_html=True)
+            
+            # File uploader
+            pdf_docs = st.file_uploader(
+                "Upload your documents (PDF, PNG, JPG)",
+                type=['pdf', 'png', 'jpg', 'jpeg'],
+                accept_multiple_files=True,
+                help="You can upload multiple files"
+            )
+            
+            # Process button
+            if pdf_docs:
+                col1, col2 = st.columns([1, 3])
+                with col1:
+                    if st.button("🔄 Process Documents", type="primary", use_container_width=True):
+                        with st.spinner("Processing documents..."):
+                            for doc in pdf_docs:
+                                try:
+                                    # Process file with OCR if enabled
+                                    text = st.session_state.file_processor.process_file(doc) if st.session_state.use_ocr else None
+                                    
+                                    if not text and doc.type == 'application/pdf':
+                                        # Fallback to regular PDF extraction
+                                        pdf_reader = PdfReader(doc)
+                                        text_content = []
+                                        for page in pdf_reader.pages:
+                                            text_content.append(page.extract_text())
+                                        text = "\n\n".join(text_content)
+                                    
+                                    if text:
+                                        chunks = DocumentProcessor.get_text_chunks(text)
+                                        if not st.session_state.vector_store:
+                                            st.session_state.vector_store = VectorStore.initialize()
+                                        else:
+                                            VectorStore.add_texts(st.session_state.vector_store, chunks, st.session_state.session_id)
+                                        st.session_state.processed_files.add(doc.name)
+                                    else:
+                                        st.warning(f"No text could be extracted from {doc.name}")
+                                    
+                                except Exception as e:
+                                    logger.error(f"Error processing {doc.name}: {str(e)}")
+                                    st.error(f"Error processing {doc.name}. Please try again.")
+                                    continue
+                            
+                            st.success("Documents processed successfully!")
+                            st.rerun()
+            
+                # Add OCR info message
+                with col2:
+                    if st.session_state.use_ocr:
+                        st.info(
+                            "ℹ️ OCR is enabled. This will process images and scanned PDFs, "
+                            "but may take longer."
+                        )
+                    else:
+                        st.warning(
+                            "⚠️ OCR is disabled. Only machine-readable PDFs will be processed. "
+                            "Enable OCR in the sidebar for scanned documents."
+                        )
+        
+        # Chat section
+        if st.session_state.processed_files:
+            st.markdown("### 💬 Ask Questions")
+            
+            # Use a form to handle the query
+            with st.form(key="qa_form"):
+                query = st.text_input("Enter your question:", key="query_input")
+                submit_button = st.form_submit_button("🔍 Get Answer", type="primary")
+                
+                if submit_button and query:
+                    with st.spinner("Finding answer..."):
+                        qa_chain = QAChain()
+                        response = qa_chain.get_response(query, st.session_state.session_id)
+                        
+                        if response:
+                            st.session_state.chat_history.append(("human", query))
+                            st.session_state.chat_history.append(("assistant", response))
+                            
+                            # Show sources in an expander
+                            with st.expander("📚 View Sources"):
+                                st.write(response)
+                        else:
+                            st.error("Failed to get response")
+            
+            # Display chat history with animations
+            if st.session_state.chat_history:
+                st.subheader("💬 Chat History")
+                for role, message in reversed(st.session_state.chat_history):
+                    if role == "human":
+                        with st.chat_message("user"):
+                            st.write(message)
+                    else:
+                        with st.chat_message("assistant"):
+                            st.write(message)
+        
+        else:
+            st.info("👆 Please upload and process documents to start asking questions.")
+        
+        # Add this JavaScript component for Tesseract.js
+        st.markdown("""
+        <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+        <script>
+        async function performOCR(imageData) {
+            const worker = await Tesseract.createWorker('eng');
+            const ret = await worker.recognize(imageData);
+            await worker.terminate();
+            return ret.data.text;
+        }
+        </script>
+        """, unsafe_allow_html=True)
+        
+        if "session_id" in st.session_state:
+            st.sidebar.success(f"Current session ID: {st.session_state.session_id}")
+            
+            # Add a button to test retrieval
+            if st.sidebar.button("Test Document Retrieval"):
+                vector_store = VectorStore.initialize()
+                if vector_store:
+                    retriever = vector_store.as_retriever(
+                        search_kwargs={
+                            "filter": {"session_id": st.session_state.session_id},
+                            "k": 10
+                        }
+                    )
+                    
+                    test_docs = retriever.get_relevant_documents("test")
+                    st.sidebar.info(f"Found {len(test_docs)} documents in current session")
+                    if test_docs:
+                        st.sidebar.success("Document retrieval working correctly!")
+                    else:
+                        st.sidebar.error("No documents found. Upload may have failed.")
+        
+    except Exception as e:
+        logger.error(f"Application error: {str(e)}")
+        logger.error(traceback.format_exc())
+        st.error("An unexpected error occurred. Please check the logs.")
+        
+        # Ensure cleanup happens even if there's an error
+        VectorStore.cleanup_session()
+
+if __name__ == "__main__":
+    main()
