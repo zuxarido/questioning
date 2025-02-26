@@ -54,23 +54,24 @@ The **Document Q&A Assistant** is an advanced tool designed to process and query
 Install Dependencies:
 
 ```bash
-pip install -r requirements.txt
-
+pip install -r requirements.txt      
+```
 
 Configure Environment Variables:
 Create a .env file in the root directory with the following:
-
+```
 PINECONE_API_KEY=your-pinecone-key
 PINECONE_ENVIRONMENT=your-pinecone-env
 GROQ_API_KEY=your-grok-key
 HUGGINGFACE_API_KEY=your-hf-key
+```
 
 
 Run the Application:
 streamlit run app.py
 
 Usage
-Launch the App: Open your browser to http://localhost:8501 after running the command above.
+Launch the App: Open your browser to ```http://localhost:8501``` after running the command above.
 Upload Documents: Use the sidebar to upload PDFs or images. Toggle "Enable OCR" for scanned files.
 Process Files: Click "Process Documents" to extract text and store it in the vector database.
 Ask Questions: Enter queries in the text box (e.g., "What’s on page 3?") and get answers based on the uploaded content.
