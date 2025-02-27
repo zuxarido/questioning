@@ -48,6 +48,7 @@ The **Document Q&A Assistant** is an advanced tool designed to process and query
 Clone the Repository:  
    ```bash
    git clone https://github.com/jaskaransngh/DocQnA.git
+   git clone https://github.com/zuxarido/questioning
    ```
 
 
