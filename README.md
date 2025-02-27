@@ -43,7 +43,8 @@ The **Document Q&A Assistant** is an advanced tool designed to process and query
 Backend Setup
 
 Navigate to Backend:
-```cd /pathto/backend
+```
+cd /path/to/DocQnA-SaaS/backend
 ```
 
 
