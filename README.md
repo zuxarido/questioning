@@ -43,63 +43,71 @@ The **Document Q&A Assistant** is an advanced tool designed to process and query
 Backend Setup
 
 Navigate to Backend:
-
-cd /path/to/DocQnA-SaaS/backend
+```cd /pathto/backend
+```
 
 
 Create Virtual Environment:
-
+```
 python -m venv .venv
 source .venv/bin/activate
-
+```
 
 Install Dependencies:
 Use the provided requirements.txt:
 
-bash '''
+```
 pip install -r requirements.txt
-'''
+```
 
 Verify:
-
+```
 pip list | grep -E "streamlit|flask|pymupdf|langchain|pinecone|huggingface|torch|requests|Pillow|flask-cors"
-
+```
 Configure Environment:
 Copy .env.example to .env:
 
-cp .env.example .env
+```cp .env.example .env```
 Edit .env with your keys:
+```
 PINECONE_API_KEY=your-pinecone-key
 PINECONE_ENVIRONMENT=your-pinecone-env
 GROQ_API_KEY=your-grok-key
 HUGGINGFACE_API_KEY=your-hf-key
+```
 
 Run Backend:
 Start Flask:
+```
 python app.py
 Access: http://localhost:5001 (or 5000 if unchanged).
+```
 
 
 
 Frontend Setup
 Navigate to Frontend:
-cd /path/to/DocQnA-SaaS/frontend
+ ``` cd /path/to/DocQnA-SaaS/frontend ```
 Install Dependencies:
-
+```
 npm install
 npm install axios react-bootstrap bootstrap react-scripts
-
+```
 Verify Structure:
 Check files:
 
+```
 ls -R
+```
 public/ should have index.html, manifest.json.
 src/ should have App.js, components/, index.js, styles.css.
 
 Run Frontend:
 Start React:
+```
 npm start
 Access: http://localhost:3000.
+```
 Usage
 Upload PDFs: Select files via the frontend upload section and click “Process Documents”.
 Ask Questions: Type a question in the chat area and click “Send”.
