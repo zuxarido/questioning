@@ -16,8 +16,10 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 import re
 from typing import List
+from flask_cors import CORS  # Add CORS support
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 # Setup logging
 log_dir = Path("logs")
@@ -50,15 +52,15 @@ class APIKeyManager:
             raise Exception(f"Missing required API keys: {', '.join(missing_keys)}")
         return keys
 
-APIKeyManager.load_and_validate()
+# Validate API keys on startup
+try:
+    APIKeyManager.load_and_validate()
+except Exception as e:
+    logger.error(f"API Key validation failed: {str(e)}")
+    # Continue running to allow debugging, but log the error
 
-# Session state
-session_state = {
-    'chat_history': [],
-    'processed_files': set(),
-    'vector_store': None,
-    'session_id': str(uuid.uuid4())
-}
+# Session state dictionary to track sessions by ID
+sessions = {}
 
 class TextProcessor:
     @staticmethod
@@ -119,17 +121,16 @@ class VectorStore:
         vector_store.add_texts(texts=texts, metadatas=metadatas, ids=ids)
     
     @staticmethod
-    def cleanup_session():
-        if session_state['session_id']:
+    def cleanup_session(session_id):
+        if session_id:
             pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
             index = pc.Index("ragshi")
             query_response = index.query(
-                vector=[0.0] * 768, filter={"session_id": session_state['session_id']}, top_k=10000
+                vector=[0.0] * 768, filter={"session_id": session_id}, top_k=10000
             )
             if query_response.matches:
                 vector_ids = [match.id for match in query_response.matches]
                 index.delete(ids=vector_ids)
-            session_state['session_id'] = str(uuid.uuid4())
 
 class QAChain:
     def __init__(self):
@@ -154,8 +155,25 @@ class QAChain:
         )
         return qa_chain.invoke(question)
 
+# Helper function to get or create session
+def get_or_create_session(session_id=None):
+    if not session_id or session_id not in sessions:
+        new_id = str(uuid.uuid4())
+        sessions[new_id] = {
+            'chat_history': [],
+            'processed_files': set(),
+            'vector_store': None,
+            'session_id': new_id
+        }
+        return sessions[new_id], new_id
+    return sessions[session_id], session_id
+
 @app.route('/api/upload', methods=['POST'])
 def upload_files():
+    # Get session ID from request or create a new one
+    session_id = request.form.get('session_id', '')
+    session_data, session_id = get_or_create_session(session_id)
+    
     files = request.files.getlist('files')
     if not files:
         return jsonify({'error': 'No files uploaded'}), 400
@@ -165,40 +183,81 @@ def upload_files():
     text_processor = TextProcessor()
     
     for file in files:
-        if file.filename not in session_state['processed_files']:
-            text = pdf_processor.extract_text(file) if file.mimetype == 'application/pdf' else ""
+        if file.filename not in session_data['processed_files']:
+            text = pdf_processor.extract_text(file) if file.filename.lower().endswith('.pdf') else ""
             if text:
                 chunks = text_processor.create_chunks(text)
-                if not session_state['vector_store']:
-                    session_state['vector_store'] = VectorStore.initialize()
-                VectorStore.add_texts(session_state['vector_store'], chunks, session_state['session_id'])
-                session_state['processed_files'].add(file.filename)
+                if not session_data['vector_store']:
+                    session_data['vector_store'] = VectorStore.initialize()
+                VectorStore.add_texts(session_data['vector_store'], chunks, session_id)
+                session_data['processed_files'].add(file.filename)
                 results.append({'filename': file.filename, 'status': 'processed'})
             else:
                 results.append({'filename': file.filename, 'status': 'no text extracted'})
     
-    return jsonify({'results': results, 'session_id': session_state['session_id']}), 200
+    return jsonify({
+        'results': results, 
+        'session_id': session_id,
+        'processed_files': list(session_data['processed_files'])
+    }), 200
 
 @app.route('/api/query', methods=['POST'])
 def query_documents():
     data = request.get_json()
     question = data.get('question')
+    session_id = data.get('session_id', '')
+    
     if not question:
         return jsonify({'error': 'No question provided'}), 400
     
-    qa_chain = QAChain()
-    response = qa_chain.get_response(question, session_state['session_id'], session_state['vector_store'])
-    session_state['chat_history'].append(('human', question))
-    session_state['chat_history'].append(('assistant', response))
+    session_data, session_id = get_or_create_session(session_id)
     
-    return jsonify({'answer': response, 'chat_history': session_state['chat_history']}), 200
+    if not session_data['vector_store']:
+        return jsonify({
+            'answer': "Please upload documents first before asking questions.",
+            'chat_history': session_data['chat_history']
+        }), 400
+    
+    qa_chain = QAChain()
+    response = qa_chain.get_response(question, session_id, session_data['vector_store'])
+    session_data['chat_history'].append({'role': 'user', 'content': question})
+    session_data['chat_history'].append({'role': 'assistant', 'content': response})
+    
+    return jsonify({
+        'answer': response, 
+        'chat_history': session_data['chat_history'],
+        'session_id': session_id
+    }), 200
 
 @app.route('/api/clear', methods=['POST'])
 def clear_session():
-    VectorStore.cleanup_session()
-    session_state['processed_files'] = set()
-    session_state['chat_history'] = []
-    return jsonify({'message': 'Session cleared', 'session_id': session_state['session_id']}), 200
+    data = request.get_json() or {}
+    session_id = data.get('session_id', '')
+    
+    if session_id and session_id in sessions:
+        VectorStore.cleanup_session(session_id)
+        # Remove this session
+        del sessions[session_id]
+    
+    # Create a new session
+    new_session, new_id = get_or_create_session()
+    
+    return jsonify({
+        'message': 'Session cleared', 
+        'session_id': new_id,
+        'processed_files': []
+    }), 200
+
+@app.route('/api/session', methods=['GET'])
+def get_session():
+    session_id = request.args.get('session_id', '')
+    session_data, session_id = get_or_create_session(session_id)
+    
+    return jsonify({
+        'session_id': session_id,
+        'processed_files': list(session_data['processed_files']),
+        'chat_history': session_data['chat_history']
+    }), 200
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)
