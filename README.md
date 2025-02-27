@@ -38,41 +38,77 @@ The **Document Q&A Assistant** is an advanced tool designed to process and query
   - ChatGroq (Grok model for question answering)  
 - **Vector Database**: Pinecone  
 - **Document Processing**: PyMuPDF, PyPDF2, Tesseract.js (client-side OCR)  
-- **Web Framework**: Streamlit  
-- **Dependencies**: Managed via `requirements.txt`  
-- **Environment**: Configured with `.env` for API keys  
 
----
 
-## Installation
-Clone the Repository:  
-   ```bash
-   git clone https://github.com/jaskaransngh/DocQnA.git
-   git clone https://github.com/zuxarido/questioning
-   ```
+Backend Setup
+
+Navigate to Backend:
+
+cd /path/to/DocQnA-SaaS/backend
+
+
+Create Virtual Environment:
+
+python -m venv .venv
+source .venv/bin/activate
 
 
 Install Dependencies:
+Use the provided requirements.txt:
 
-```bash
-pip install -r requirements.txt      
-```
+bash '''
+pip install -r requirements.txt
+'''
 
-Configure Environment Variables:
-Create a .env file in the root directory with the following:
-```
+Verify:
+
+pip list | grep -E "streamlit|flask|pymupdf|langchain|pinecone|huggingface|torch|requests|Pillow|flask-cors"
+
+Configure Environment:
+Copy .env.example to .env:
+
+cp .env.example .env
+Edit .env with your keys:
 PINECONE_API_KEY=your-pinecone-key
 PINECONE_ENVIRONMENT=your-pinecone-env
 GROQ_API_KEY=your-grok-key
 HUGGINGFACE_API_KEY=your-hf-key
-```
+
+Run Backend:
+Start Flask:
+python app.py
+Access: http://localhost:5001 (or 5000 if unchanged).
 
 
-Run the Application:
-streamlit run app.py
+
+Frontend Setup
+Navigate to Frontend:
+cd /path/to/DocQnA-SaaS/frontend
+Install Dependencies:
+
+npm install
+npm install axios react-bootstrap bootstrap react-scripts
+
+Verify Structure:
+Check files:
+
+ls -R
+public/ should have index.html, manifest.json.
+src/ should have App.js, components/, index.js, styles.css.
+
+Run Frontend:
+Start React:
+npm start
+Access: http://localhost:3000.
+Usage
+Upload PDFs: Select files via the frontend upload section and click “Process Documents”.
+Ask Questions: Type a question in the chat area and click “Send”.
+Clear Session: Click “Clear All Documents” in the sidebar to reset.
+Monitor: View processed files in the sidebar and chat history below.
+
 
 Usage
-Launch the App: Open your browser to ```http://localhost:8501``` after running the command above.
+
 Upload Documents: Use the sidebar to upload PDFs or images. Toggle "Enable OCR" for scanned files.
 Process Files: Click "Process Documents" to extract text and store it in the vector database.
 Ask Questions: Enter queries in the text box (e.g., "What’s on page 3?") and get answers based on the uploaded content.
