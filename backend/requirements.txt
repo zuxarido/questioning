@@ -9,3 +9,5 @@ PyPDF2
 PyMuPDF
 pillow
 requests
+flask-cors
+langchain_community
