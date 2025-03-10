@@ -1,29 +1,57 @@
-import React from 'react';
-import axios from 'axios';
-import { Button, ListGroup } from 'react-bootstrap';
+import React, { useState } from 'react';
+import { Button, ListGroup, Badge, Form } from 'react-bootstrap';
+import Upload from './Upload';
 
-function Sidebar({ processedFiles, setProcessedFiles, setSessionId }) {
-  const handleClear = async () => {
-    try {
-      const response = await axios.post('http://localhost:5001/api/clear');
-      setProcessedFiles([]);
-      setSessionId(response.data.session_id);
-    } catch (error) {
-      console.error('Clear failed:', error);
-    }
-  };
+const Sidebar = ({ processedFiles, onClearSession, isLoading, sessionId, setSessionId, setProcessedFiles, setIsLoading }) => {
+  const [enableOCR, setEnableOCR] = useState(false);
 
   return (
-    <div className="sidebar-content">
-      <h3>Document Management</h3>
-      <ListGroup>
-        {processedFiles.map((file, idx) => (
-          <ListGroup.Item key={idx}>{file}</ListGroup.Item>
-        ))}
-      </ListGroup>
-      <Button variant="danger" onClick={handleClear} className="mt-3">Clear All Documents</Button>
+    <div className="sidebar">
+      <h3>Documents</h3>
+      
+      <div className="ocr-switch">
+        <Form.Check 
+          type="switch"
+          id="ocr-switch"
+          label="Enable OCR"
+          checked={enableOCR}
+          onChange={() => setEnableOCR(!enableOCR)}
+        />
+        <div className="ocr-text">
+          Extract text from images and scanned documents
+        </div>
+      </div>
+      
+      <Upload 
+        sessionId={sessionId} 
+        setSessionId={setSessionId} 
+        setProcessedFiles={setProcessedFiles} 
+        setIsLoading={setIsLoading} 
+      />
+      
+      {processedFiles.length > 0 && (
+        <>
+          <ListGroup className="document-list">
+            {processedFiles.map((filename, index) => (
+              <ListGroup.Item key={index} className="document-item d-flex justify-content-between align-items-center">
+                {filename}
+                <Badge bg="primary" pill className="document-badge">PDF</Badge>
+              </ListGroup.Item>
+            ))}
+          </ListGroup>
+          
+          <Button
+            variant="outline-danger"
+            onClick={onClearSession}
+            disabled={isLoading || processedFiles.length === 0}
+            className="mt-3 w-100"
+          >
+            Clear All Documents
+          </Button>
+        </>
+      )}
     </div>
   );
-}
+};
 
 export default Sidebar;
