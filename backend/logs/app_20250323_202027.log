@@ -1,0 +1,6 @@
+2025-03-23 20:20:27,970 - werkzeug - WARNING -  * Debugger is active!
+2025-03-23 20:20:27,977 - werkzeug - INFO -  * Debugger PIN: 991-541-317
+2025-03-23 20:20:57,926 - werkzeug - INFO - 127.0.0.1 - - [23/Mar/2025 20:20:57] "GET /api/session HTTP/1.1" 200 -
+2025-03-23 20:21:24,656 - werkzeug - INFO - 127.0.0.1 - - [23/Mar/2025 20:21:24] "[35m[1mPOST /api/upload HTTP/1.1[0m" 500 -
+2025-03-23 20:21:45,736 - werkzeug - INFO - 127.0.0.1 - - [23/Mar/2025 20:21:45] "GET /api/session HTTP/1.1" 200 -
+2025-03-23 20:22:04,789 - werkzeug - INFO -  * Detected change in '/Users/sujoydatta/Desktop/rag/questioning/backend/streamlit_app.py', reloading

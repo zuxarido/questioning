@@ -1,0 +1,7 @@
+2025-03-18 10:20:28,199 - __main__ - ERROR - API Key validation failed: Missing required API keys: PINECONE_API_KEY, PINECONE_ENVIRONMENT, GROQ_API_KEY, HUGGINGFACE_API_KEY
+2025-03-18 10:20:33,320 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5001
+ * Running on http://10.200.8.160:5001
+2025-03-18 10:20:33,321 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-03-18 10:20:33,323 - werkzeug - INFO -  * Restarting with stat

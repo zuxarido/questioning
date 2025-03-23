@@ -1,0 +1,5 @@
+2025-03-23 20:50:00,345 - pinecone_plugin_interface.logging - INFO - Discovering subpackages in _NamespacePath(['/Users/sujoydatta/Desktop/rag/questioning/.venv/lib/python3.9/site-packages/pinecone_plugins'])
+2025-03-23 20:50:00,349 - pinecone_plugin_interface.logging - INFO - Looking for plugins in pinecone_plugins.inference
+2025-03-23 20:50:00,374 - pinecone_plugin_interface.logging - INFO - Installing plugin inference into Pinecone
+2025-03-23 20:50:00,405 - werkzeug - WARNING -  * Debugger is active!
+2025-03-23 20:50:00,412 - werkzeug - INFO -  * Debugger PIN: 991-541-317

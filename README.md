@@ -1,124 +1,155 @@
-# Document Q&A Assistant
+# RAG Q&A System
 
-
-*A Retrieval-Augmented Generation (RAG) system for querying document content using natural language processing.*
-
----
-
-## Overview
-The **Document Q&A Assistant** is an advanced tool designed to process and query document content efficiently. Built with a Retrieval-Augmented Generation (RAG) architecture, it allows users to upload PDF and image files, extract text (including via OCR), and ask questions based on the document content. Leveraging state-of-the-art natural language processing (NLP) techniques, the system retrieves relevant information from the documents and provides precise answers through an intuitive web interface. This project demonstrates a practical application of AI in document management and information retrieval, suitable for educational, research, and professional use cases.
-
----
-
-## Objectives
-- Enable users to upload and process multiple document types (PDFs, PNGs, JPGs).  
-- Extract text from documents, including scanned images, using client-side OCR.  
-- Store document content in a vector database for efficient retrieval.  
-- Provide a user-friendly interface for querying documents with natural language.  
-- Ensure modularity and scalability through a well-structured codebase.  
-
----
+A Retrieval-Augmented Generation (RAG) system that allows users to upload documents and ask questions about their content.
 
 ## Features
-| Feature                   | Description                                                                 |
-|---------------------------|-----------------------------------------------------------------------------|
-| Document Upload           | Supports PDFs and images (PNG, JPG) with multi-file upload capability.     |
-| Text Extraction           | Extracts text from PDFs using PyMuPDF/PyPDF2 and images via Tesseract.js.  |
-| OCR Support               | Client-side OCR for processing scanned documents and images.               |
-| Question Answering        | Answers queries based on document content using Grok and Pinecone.         |
-| Interactive UI            | Streamlit-based interface with chat history and session management.        |
 
----
+- PDF document upload and processing
+- Text extraction and chunking
+- Vector storage using Pinecone
+- Question answering using Groq's LLM
+- Modern Streamlit UI
+- Session management
+- Support for multiple documents
 
-## Technology Stack
-- **Programming Language**: Python 3.x  
-- **NLP and AI**:  
-  - Hugging Face Transformers 
-  - LangChain (text splitting, embeddings, retrieval)  
-  - ChatGroq (Grok model for question answering)  
-- **Vector Database**: Pinecone  
-- **Document Processing**: PyMuPDF, PyPDF2, Tesseract.js (client-side OCR)  
+## Prerequisites
 
+- Python 3.9+
+- Node.js (for React frontend)
+- API keys for:
+  - Pinecone
+  - Groq
+  - Hugging Face
 
-Backend Setup
+## Project Structure
 
-Navigate to Backend:
 ```
-cd /path/to/DocQnA-SaaS/backend
+questioning/
+├── backend/
+│   ├── app.py              # Flask backend
+│   ├── streamlit_app.py    # Streamlit frontend
+│   ├── requirements.txt    # Python dependencies
+│   └── .env               # Environment variables
+└── frontend/              # React frontend (optional)
 ```
 
+## Setup Instructions
 
-Create Virtual Environment:
+### 1. Clone the Repository
+
+```bash
+git clone <repository-url>
+cd questioning
 ```
+
+### 2. Set Up Python Environment
+
+```bash
+# Create and activate virtual environment
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies
+pip install -r backend/requirements.txt
 ```
 
-Install Dependencies:
-Use the provided requirements.txt:
+### 3. Configure Environment Variables
 
-```
-pip install -r requirements.txt
-```
+Create a `.env` file in the `backend` directory with your API keys:
 
-Verify:
-```
-pip list | grep -E "streamlit|flask|pymupdf|langchain|pinecone|huggingface|torch|requests|Pillow|flask-cors"
-```
-Configure Environment:
-Copy .env.example to .env:
-
-```cp .env.example .env```
-Edit .env with your keys:
-```
+```env
 PINECONE_API_KEY=your-pinecone-key
 PINECONE_ENVIRONMENT=your-pinecone-env
-GROQ_API_KEY=your-grok-key
+GROQ_API_KEY=your-groq-key
 HUGGINGFACE_API_KEY=your-hf-key
 ```
 
-Run Backend:
-Start Flask:
-```
+### 4. Running the Application
+
+You can run the application using either the Streamlit frontend (recommended) or the Flask backend with React frontend.
+
+#### Option 1: Streamlit Frontend (Recommended)
+
+1. Start the Flask backend:
+```bash
+cd backend
 python app.py
-Access: http://localhost:5001 (or 5000 if unchanged).
+```
+The backend will run on http://localhost:5001
+
+2. In a new terminal, start the Streamlit frontend:
+```bash
+cd backend
+streamlit run streamlit_app.py
+```
+The Streamlit UI will be available at http://localhost:8502
+
+#### Option 2: React Frontend (Optional)
+
+1. Start the Flask backend:
+```bash
+cd backend
+python app.py
 ```
 
-
-
-Frontend Setup
-Navigate to Frontend:
- ``` cd /path/to/DocQnA-SaaS/frontend ```
-Install Dependencies:
-```
+2. In a new terminal, start the React frontend:
+```bash
+cd frontend
 npm install
-npm install axios react-bootstrap bootstrap react-scripts
-```
-Verify Structure:
-Check files:
-
-```
-ls -R
-```
-public/ should have index.html, manifest.json.
-src/ should have App.js, components/, index.js, styles.css.
-
-Run Frontend:
-Start React:
-```
 npm start
-Access: http://localhost:3000.
 ```
-Usage
-Upload PDFs: Select files via the frontend upload section and click “Process Documents”.
-Ask Questions: Type a question in the chat area and click “Send”.
-Clear Session: Click “Clear All Documents” in the sidebar to reset.
-Monitor: View processed files in the sidebar and chat history below.
+The React UI will be available at http://localhost:3000
 
+## Usage
 
-Usage
+1. **Upload Documents**:
+   - Click the upload area or drag and drop PDF files
+   - Wait for the processing to complete
+   - You'll see success/error messages for each file
 
-Upload Documents: Use the sidebar to upload PDFs or images. Toggle "Enable OCR" for scanned files.
-Process Files: Click "Process Documents" to extract text and store it in the vector database.
-Ask Questions: Enter queries in the text box (e.g., "What’s on page 3?") and get answers based on the uploaded content.
-View History: Chat history displays questions and responses for reference.
+2. **Ask Questions**:
+   - Type your question in the chat input
+   - The system will search through your documents and provide relevant answers
+   - Chat history is maintained throughout the session
+
+3. **Manage Sessions**:
+   - Use the sidebar to view uploaded files
+   - Clear the session to start fresh
+   - Session ID is displayed in the sidebar
+
+## Troubleshooting
+
+1. **Port Already in Use**:
+   - If port 5001 is in use, you can kill the process:
+     ```bash
+     lsof -i :5001  # Find the process
+     kill -9 <PID>  # Kill the process
+     ```
+
+2. **API Key Issues**:
+   - Ensure all required API keys are set in `.env`
+   - Check the logs for specific error messages
+
+3. **Document Processing**:
+   - Only text-based PDFs are supported
+   - Scanned PDFs or images are not supported yet
+   - Minimum text length of 50 characters is required
+
+## Development
+
+- The Flask backend handles document processing and API interactions
+- The Streamlit frontend provides a modern, responsive UI
+- Logs are stored in the `logs` directory
+- Debug mode is enabled by default
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

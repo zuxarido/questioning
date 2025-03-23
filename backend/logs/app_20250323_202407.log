@@ -1,0 +1,98 @@
+2025-03-23 20:24:07,211 - werkzeug - WARNING -  * Debugger is active!
+2025-03-23 20:24:07,220 - werkzeug - INFO -  * Debugger PIN: 991-541-317
+2025-03-23 20:24:33,659 - werkzeug - INFO - 127.0.0.1 - - [23/Mar/2025 20:24:33] "GET /api/session HTTP/1.1" 200 -
+2025-03-23 20:25:13,641 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: sentence-transformers/bert-base-nli-mean-tokens
+2025-03-23 20:25:13,686 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): huggingface.co:443
+2025-03-23 20:25:14,031 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /sentence-transformers/bert-base-nli-mean-tokens/resolve/main/modules.json HTTP/1.1" 200 0
+2025-03-23 20:25:14,034 - filelock - DEBUG - Attempting to acquire lock 13759532960 on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/f7640f94e81bb7f4f04daf1668850b38763a13d9.lock
+2025-03-23 20:25:14,035 - filelock - DEBUG - Lock 13759532960 acquired on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/f7640f94e81bb7f4f04daf1668850b38763a13d9.lock
+2025-03-23 20:25:14,264 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /sentence-transformers/bert-base-nli-mean-tokens/resolve/main/modules.json HTTP/1.1" 200 229
+2025-03-23 20:25:14,271 - filelock - DEBUG - Attempting to release lock 13759532960 on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/f7640f94e81bb7f4f04daf1668850b38763a13d9.lock
+2025-03-23 20:25:14,272 - filelock - DEBUG - Lock 13759532960 released on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/f7640f94e81bb7f4f04daf1668850b38763a13d9.lock
+2025-03-23 20:25:14,498 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /sentence-transformers/bert-base-nli-mean-tokens/resolve/main/config_sentence_transformers.json HTTP/1.1" 200 0
+2025-03-23 20:25:14,500 - filelock - DEBUG - Attempting to acquire lock 13759532960 on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/b974b349cb2d419ada11181750a733ff82f291ad.lock
+2025-03-23 20:25:14,500 - filelock - DEBUG - Lock 13759532960 acquired on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/b974b349cb2d419ada11181750a733ff82f291ad.lock
+2025-03-23 20:25:14,728 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /sentence-transformers/bert-base-nli-mean-tokens/resolve/main/config_sentence_transformers.json HTTP/1.1" 200 122
+2025-03-23 20:25:14,731 - filelock - DEBUG - Attempting to release lock 13759532960 on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/b974b349cb2d419ada11181750a733ff82f291ad.lock
+2025-03-23 20:25:14,731 - filelock - DEBUG - Lock 13759532960 released on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/b974b349cb2d419ada11181750a733ff82f291ad.lock
+2025-03-23 20:25:14,956 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /sentence-transformers/bert-base-nli-mean-tokens/resolve/main/README.md HTTP/1.1" 200 0
+2025-03-23 20:25:14,957 - filelock - DEBUG - Attempting to acquire lock 13759674304 on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/03c2e9cabe8d88ab6be475612ef66de007fcabef.lock
+2025-03-23 20:25:14,958 - filelock - DEBUG - Lock 13759674304 acquired on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/03c2e9cabe8d88ab6be475612ef66de007fcabef.lock
+2025-03-23 20:25:15,205 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /sentence-transformers/bert-base-nli-mean-tokens/resolve/main/README.md HTTP/1.1" 200 3769
+2025-03-23 20:25:15,209 - filelock - DEBUG - Attempting to release lock 13759674304 on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/03c2e9cabe8d88ab6be475612ef66de007fcabef.lock
+2025-03-23 20:25:15,209 - filelock - DEBUG - Lock 13759674304 released on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/03c2e9cabe8d88ab6be475612ef66de007fcabef.lock
+2025-03-23 20:25:15,442 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /sentence-transformers/bert-base-nli-mean-tokens/resolve/main/modules.json HTTP/1.1" 200 0
+2025-03-23 20:25:15,680 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /sentence-transformers/bert-base-nli-mean-tokens/resolve/main/sentence_bert_config.json HTTP/1.1" 200 0
+2025-03-23 20:25:15,683 - filelock - DEBUG - Attempting to acquire lock 13759675792 on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/5fd10429389515d3e5cccdeda08cae5fea1ae82e.lock
+2025-03-23 20:25:15,683 - filelock - DEBUG - Lock 13759675792 acquired on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/5fd10429389515d3e5cccdeda08cae5fea1ae82e.lock
+2025-03-23 20:25:15,909 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /sentence-transformers/bert-base-nli-mean-tokens/resolve/main/sentence_bert_config.json HTTP/1.1" 200 53
+2025-03-23 20:25:15,912 - filelock - DEBUG - Attempting to release lock 13759675792 on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/5fd10429389515d3e5cccdeda08cae5fea1ae82e.lock
+2025-03-23 20:25:15,913 - filelock - DEBUG - Lock 13759675792 released on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/5fd10429389515d3e5cccdeda08cae5fea1ae82e.lock
+2025-03-23 20:25:16,137 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /sentence-transformers/bert-base-nli-mean-tokens/resolve/main/adapter_config.json HTTP/1.1" 404 0
+2025-03-23 20:25:16,391 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /sentence-transformers/bert-base-nli-mean-tokens/resolve/main/config.json HTTP/1.1" 200 0
+2025-03-23 20:25:16,392 - filelock - DEBUG - Attempting to acquire lock 13759676080 on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/6a81675daa01eab727156f24147a0ad9eee1adb2.lock
+2025-03-23 20:25:16,393 - filelock - DEBUG - Lock 13759676080 acquired on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/6a81675daa01eab727156f24147a0ad9eee1adb2.lock
+2025-03-23 20:25:16,636 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /sentence-transformers/bert-base-nli-mean-tokens/resolve/main/config.json HTTP/1.1" 200 625
+2025-03-23 20:25:16,639 - filelock - DEBUG - Attempting to release lock 13759676080 on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/6a81675daa01eab727156f24147a0ad9eee1adb2.lock
+2025-03-23 20:25:16,639 - filelock - DEBUG - Lock 13759676080 released on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/6a81675daa01eab727156f24147a0ad9eee1adb2.lock
+2025-03-23 20:25:17,018 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /sentence-transformers/bert-base-nli-mean-tokens/resolve/main/model.safetensors HTTP/1.1" 302 0
+2025-03-23 20:25:17,086 - filelock - DEBUG - Attempting to acquire lock 13790294944 on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/9510000ec322a40d6cbf5dcfcc81de3630e8fc31a3bab27736b0464a17f10980.lock
+2025-03-23 20:25:17,086 - filelock - DEBUG - Lock 13790294944 acquired on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/9510000ec322a40d6cbf5dcfcc81de3630e8fc31a3bab27736b0464a17f10980.lock
+2025-03-23 20:25:17,090 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): cdn-lfs.hf.co:443
+2025-03-23 20:25:17,153 - urllib3.connectionpool - DEBUG - https://cdn-lfs.hf.co:443 "GET /sentence-transformers/bert-base-nli-mean-tokens/9510000ec322a40d6cbf5dcfcc81de3630e8fc31a3bab27736b0464a17f10980?response-content-disposition=inline%3B+filename*%3DUTF-8%27%27model.safetensors%3B+filename%3D%22model.safetensors%22%3B&Expires=1742745316&Policy=eyJTdGF0ZW1lbnQiOlt7IkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc0Mjc0NTMxNn19LCJSZXNvdXJjZSI6Imh0dHBzOi8vY2RuLWxmcy5oZi5jby9zZW50ZW5jZS10cmFuc2Zvcm1lcnMvYmVydC1iYXNlLW5saS1tZWFuLXRva2Vucy85NTEwMDAwZWMzMjJhNDBkNmNiZjVkY2ZjYzgxZGUzNjMwZThmYzMxYTNiYWIyNzczNmIwNDY0YTE3ZjEwOTgwP3Jlc3BvbnNlLWNvbnRlbnQtZGlzcG9zaXRpb249KiJ9XX0_&Signature=ZjNYXT-H2m2P~CRBr~IZJN~E276iqC1krLiAuvBGYN1YSgsBDCHRfFybQX1ya3uwWFMU3zsVPjQ47gn5bZCm25DLZ9Zhkqf8pFlx6axJ9aiOeM5SwzTL9uedynF-XiecU77KuJURr53BIUlzMaUZmWKhhE6G6rCGrmcbDhBVcjDs-w3~traNaIEiACDyTw6x9MLNFQShBk8MIHbW1o5ybDUBap7oQHWyxYobHsdiqe-LGJX3jel6WTkfkvExCH4YTluQx4bTyabrnXz4qMhGzChFiAuSGgIxR7uYJbLuAb8z8Ahy89shGDGVOo92A~zQ~hmsZjiAPivxvc9HJnE1Yw__&Key-Pair-Id=K3RPWS32NSSJCE HTTP/1.1" 200 437955512
+2025-03-23 20:25:21,656 - werkzeug - INFO - 127.0.0.1 - - [23/Mar/2025 20:25:21] "[31m[1mPOST /api/query HTTP/1.1[0m" 400 -
+2025-03-23 20:25:58,810 - filelock - DEBUG - Attempting to release lock 13790294944 on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/9510000ec322a40d6cbf5dcfcc81de3630e8fc31a3bab27736b0464a17f10980.lock
+2025-03-23 20:25:58,810 - filelock - DEBUG - Lock 13790294944 released on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/9510000ec322a40d6cbf5dcfcc81de3630e8fc31a3bab27736b0464a17f10980.lock
+2025-03-23 20:25:59,117 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /sentence-transformers/bert-base-nli-mean-tokens/resolve/main/tokenizer_config.json HTTP/1.1" 200 0
+2025-03-23 20:25:59,119 - filelock - DEBUG - Attempting to acquire lock 13799301424 on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/a06c898fb005a633242b96576f356930c895d119.lock
+2025-03-23 20:25:59,119 - filelock - DEBUG - Lock 13799301424 acquired on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/a06c898fb005a633242b96576f356930c895d119.lock
+2025-03-23 20:25:59,347 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /sentence-transformers/bert-base-nli-mean-tokens/resolve/main/tokenizer_config.json HTTP/1.1" 200 399
+2025-03-23 20:25:59,353 - filelock - DEBUG - Attempting to release lock 13799301424 on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/a06c898fb005a633242b96576f356930c895d119.lock
+2025-03-23 20:25:59,354 - filelock - DEBUG - Lock 13799301424 released on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/a06c898fb005a633242b96576f356930c895d119.lock
+2025-03-23 20:25:59,603 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /sentence-transformers/bert-base-nli-mean-tokens/resolve/main/vocab.txt HTTP/1.1" 200 0
+2025-03-23 20:25:59,605 - filelock - DEBUG - Attempting to acquire lock 13790455936 on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/fb140275c155a9c7c5a3b3e0e77a9e839594a938.lock
+2025-03-23 20:25:59,606 - filelock - DEBUG - Lock 13790455936 acquired on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/fb140275c155a9c7c5a3b3e0e77a9e839594a938.lock
+2025-03-23 20:25:59,852 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /sentence-transformers/bert-base-nli-mean-tokens/resolve/main/vocab.txt HTTP/1.1" 200 231508
+2025-03-23 20:26:00,067 - filelock - DEBUG - Attempting to release lock 13790455936 on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/fb140275c155a9c7c5a3b3e0e77a9e839594a938.lock
+2025-03-23 20:26:00,068 - filelock - DEBUG - Lock 13790455936 released on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/fb140275c155a9c7c5a3b3e0e77a9e839594a938.lock
+2025-03-23 20:26:00,289 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /sentence-transformers/bert-base-nli-mean-tokens/resolve/main/tokenizer.json HTTP/1.1" 200 0
+2025-03-23 20:26:00,292 - filelock - DEBUG - Attempting to acquire lock 14028314272 on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/40c4a0f6c414c8218190234bbce9bf4cc04fa3ac.lock
+2025-03-23 20:26:00,292 - filelock - DEBUG - Lock 14028314272 acquired on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/40c4a0f6c414c8218190234bbce9bf4cc04fa3ac.lock
+2025-03-23 20:26:00,535 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /sentence-transformers/bert-base-nli-mean-tokens/resolve/main/tokenizer.json HTTP/1.1" 200 466081
+2025-03-23 20:26:01,079 - filelock - DEBUG - Attempting to release lock 14028314272 on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/40c4a0f6c414c8218190234bbce9bf4cc04fa3ac.lock
+2025-03-23 20:26:01,079 - filelock - DEBUG - Lock 14028314272 released on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/40c4a0f6c414c8218190234bbce9bf4cc04fa3ac.lock
+2025-03-23 20:26:01,371 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /sentence-transformers/bert-base-nli-mean-tokens/resolve/main/added_tokens.json HTTP/1.1" 200 0
+2025-03-23 20:26:01,372 - filelock - DEBUG - Attempting to acquire lock 14028314272 on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/9e26dfeeb6e641a33dae4961196235bdb965b21b.lock
+2025-03-23 20:26:01,373 - filelock - DEBUG - Lock 14028314272 acquired on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/9e26dfeeb6e641a33dae4961196235bdb965b21b.lock
+2025-03-23 20:26:01,629 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /sentence-transformers/bert-base-nli-mean-tokens/resolve/main/added_tokens.json HTTP/1.1" 200 2
+2025-03-23 20:26:01,633 - filelock - DEBUG - Attempting to release lock 14028314272 on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/9e26dfeeb6e641a33dae4961196235bdb965b21b.lock
+2025-03-23 20:26:01,634 - filelock - DEBUG - Lock 14028314272 released on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/9e26dfeeb6e641a33dae4961196235bdb965b21b.lock
+2025-03-23 20:26:01,994 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /sentence-transformers/bert-base-nli-mean-tokens/resolve/main/special_tokens_map.json HTTP/1.1" 200 0
+2025-03-23 20:26:01,995 - filelock - DEBUG - Attempting to acquire lock 14028314272 on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/e7b0375001f109a6b8873d756ad4f7bbb15fbaa5.lock
+2025-03-23 20:26:01,996 - filelock - DEBUG - Lock 14028314272 acquired on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/e7b0375001f109a6b8873d756ad4f7bbb15fbaa5.lock
+2025-03-23 20:26:02,240 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /sentence-transformers/bert-base-nli-mean-tokens/resolve/main/special_tokens_map.json HTTP/1.1" 200 112
+2025-03-23 20:26:02,243 - filelock - DEBUG - Attempting to release lock 14028314272 on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/e7b0375001f109a6b8873d756ad4f7bbb15fbaa5.lock
+2025-03-23 20:26:02,243 - filelock - DEBUG - Lock 14028314272 released on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/e7b0375001f109a6b8873d756ad4f7bbb15fbaa5.lock
+2025-03-23 20:26:02,501 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /sentence-transformers/bert-base-nli-mean-tokens/resolve/main/chat_template.jinja HTTP/1.1" 404 0
+2025-03-23 20:26:02,816 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /api/models/sentence-transformers/bert-base-nli-mean-tokens/revision/main HTTP/1.1" 200 2935
+2025-03-23 20:26:02,822 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): huggingface.co:443
+2025-03-23 20:26:03,360 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /sentence-transformers/bert-base-nli-mean-tokens/resolve/160a52b38a51ae87295ec3eabcf11755e5d27a8d/1_Pooling/config.json HTTP/1.1" 200 0
+2025-03-23 20:26:03,362 - filelock - DEBUG - Attempting to acquire lock 14037985072 on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/4e09f293dfe90bba49f87cfe7996271f07be2666.lock
+2025-03-23 20:26:03,362 - filelock - DEBUG - Lock 14037985072 acquired on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/4e09f293dfe90bba49f87cfe7996271f07be2666.lock
+2025-03-23 20:26:03,644 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /sentence-transformers/bert-base-nli-mean-tokens/resolve/160a52b38a51ae87295ec3eabcf11755e5d27a8d/1_Pooling/config.json HTTP/1.1" 200 190
+2025-03-23 20:26:03,654 - filelock - DEBUG - Attempting to release lock 14037985072 on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/4e09f293dfe90bba49f87cfe7996271f07be2666.lock
+2025-03-23 20:26:03,657 - filelock - DEBUG - Lock 14037985072 released on ./models/.locks/models--sentence-transformers--bert-base-nli-mean-tokens/4e09f293dfe90bba49f87cfe7996271f07be2666.lock
+2025-03-23 20:26:03,892 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /api/models/sentence-transformers/bert-base-nli-mean-tokens HTTP/1.1" 200 2935
+2025-03-23 20:26:03,900 - pinecone_plugin_interface.logging - INFO - Discovering subpackages in _NamespacePath(['/Users/sujoydatta/Desktop/rag/questioning/.venv/lib/python3.9/site-packages/pinecone_plugins'])
+2025-03-23 20:26:03,901 - pinecone_plugin_interface.logging - INFO - Looking for plugins in pinecone_plugins.inference
+2025-03-23 20:26:03,921 - pinecone_plugin_interface.logging - INFO - Installing plugin inference into Pinecone
+2025-03-23 20:26:04,957 - pinecone.core.openapi.shared.rest - DEBUG - response body: b'{"error":{"code":"NOT_FOUND","message":"Resource ragshi not found"},"status":404}'
+2025-03-23 20:26:04,980 - werkzeug - INFO - 127.0.0.1 - - [23/Mar/2025 20:26:04] "[35m[1mPOST /api/upload HTTP/1.1[0m" 500 -
+2025-03-23 20:26:08,854 - werkzeug - INFO - 127.0.0.1 - - [23/Mar/2025 20:26:08] "[31m[1mPOST /api/query HTTP/1.1[0m" 400 -
+2025-03-23 20:26:13,670 - werkzeug - INFO - 127.0.0.1 - - [23/Mar/2025 20:26:13] "GET /api/session HTTP/1.1" 200 -
+2025-03-23 20:26:21,356 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: sentence-transformers/bert-base-nli-mean-tokens
+2025-03-23 20:26:24,993 - pinecone_plugin_interface.logging - INFO - Discovering subpackages in _NamespacePath(['/Users/sujoydatta/Desktop/rag/questioning/.venv/lib/python3.9/site-packages/pinecone_plugins'])
+2025-03-23 20:26:24,995 - pinecone_plugin_interface.logging - INFO - Looking for plugins in pinecone_plugins.inference
+2025-03-23 20:26:24,995 - pinecone_plugin_interface.logging - INFO - Installing plugin inference into Pinecone
+2025-03-23 20:26:25,827 - pinecone.core.openapi.shared.rest - DEBUG - response body: b'{"error":{"code":"NOT_FOUND","message":"Resource ragshi not found"},"status":404}'
+2025-03-23 20:26:25,843 - werkzeug - INFO - 127.0.0.1 - - [23/Mar/2025 20:26:25] "[35m[1mPOST /api/upload HTTP/1.1[0m" 500 -

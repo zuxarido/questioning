@@ -1,22 +1,24 @@
 from flask import Flask, request, jsonify
+from werkzeug.utils import secure_filename
+import os
 from dotenv import load_dotenv
 from PyPDF2 import PdfReader
-import os
-from langchain_community.embeddings.huggingface import HuggingFaceEmbeddings
-from langchain_groq import ChatGroq
-from langchain.prompts import ChatPromptTemplate
-from langchain_pinecone import PineconeVectorStore
-from pinecone import Pinecone
 import fitz
 import logging
 from pathlib import Path
 from datetime import datetime
 import uuid
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.output_parsers import StrOutputParser
 import re
 from typing import List
-from flask_cors import CORS  # Add CORS support
+from flask_cors import CORS
+from pinecone import Pinecone, ServerlessSpec
+from langchain_community.embeddings.huggingface import HuggingFaceEmbeddings
+from langchain_groq import ChatGroq
+from langchain.prompts import ChatPromptTemplate
+from langchain_pinecone import PineconeVectorStore
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -34,6 +36,9 @@ logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
+
+# Initialize Pinecone
+pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 
 # API Key Manager
 class APIKeyManager:
@@ -78,7 +83,6 @@ class TextProcessor:
     
     @staticmethod
     def create_chunks(text: str) -> List[str]:
-        from langchain.text_splitter import RecursiveCharacterTextSplitter
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=500, chunk_overlap=100, length_function=len, separators=["\n\n", "\n", " ", ""]
         )
@@ -105,13 +109,25 @@ class VectorStore:
     def initialize():
         os.environ['CUDA_VISIBLE_DEVICES'] = ''
         embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/bert-base-nli-mean-tokens",
+            model_name="sentence-transformers/all-MiniLM-L6-v2",
             model_kwargs={'device': 'cpu'},
             encode_kwargs={'normalize_embeddings': True},
             cache_folder="./models"
         )
-        pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-        index = pc.Index("ragshi")
+        
+        # Create a new index with the correct dimensions
+        index_name = "rag-index"
+        if index_name not in pc.list_indexes().names():
+            pc.create_index(
+                name=index_name,
+                dimension=384,  # dimension for all-MiniLM-L6-v2
+                metric="cosine",
+                spec=ServerlessSpec(
+                    cloud="aws",
+                    region="us-east-1"
+                )
+            )
+        index = pc.Index(index_name)
         return PineconeVectorStore(index=index, embedding=embeddings, text_key="text")
     
     @staticmethod
@@ -123,10 +139,9 @@ class VectorStore:
     @staticmethod
     def cleanup_session(session_id):
         if session_id:
-            pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-            index = pc.Index("ragshi")
+            index = pc.Index("rag-index")
             query_response = index.query(
-                vector=[0.0] * 768, filter={"session_id": session_id}, top_k=10000
+                vector=[0.0] * 384, filter={"session_id": session_id}, top_k=10000
             )
             if query_response.matches:
                 vector_ids = [match.id for match in query_response.matches]
@@ -134,7 +149,7 @@ class VectorStore:
 
 class QAChain:
     def __init__(self):
-        self.llm = ChatGroq(api_key=os.getenv("GROQ_API_KEY"), model_name="mixtral-8x7b-32768")
+        self.llm = ChatGroq(api_key=os.getenv("GROQ_API_KEY"), model_name="llama-3.3-70b-versatile")
         self.prompt = ChatPromptTemplate.from_messages([
             ("system", """You are a helpful assistant that answers questions based on the provided context.
             If the answer cannot be found in the context, say "I couldn't find any relevant information in the documents."
@@ -185,15 +200,34 @@ def upload_files():
     for file in files:
         if file.filename not in session_data['processed_files']:
             text = pdf_processor.extract_text(file) if file.filename.lower().endswith('.pdf') else ""
-            if text:
-                chunks = text_processor.create_chunks(text)
+            
+            # Check if any meaningful text was extracted
+            cleaned_text = text_processor.clean_text(text) if text else ""
+            if not cleaned_text or len(cleaned_text.strip()) < 50:  # Minimum meaningful text length
+                results.append({
+                    'filename': file.filename,
+                    'status': 'no text extracted',
+                    'message': 'No readable text found. Please ensure this is a text-based PDF file.'
+                })
+                continue
+                
+            chunks = text_processor.create_chunks(cleaned_text)
+            if chunks:
                 if not session_data['vector_store']:
                     session_data['vector_store'] = VectorStore.initialize()
                 VectorStore.add_texts(session_data['vector_store'], chunks, session_id)
                 session_data['processed_files'].add(file.filename)
-                results.append({'filename': file.filename, 'status': 'processed'})
+                results.append({
+                    'filename': file.filename,
+                    'status': 'processed',
+                    'chunks': len(chunks)
+                })
             else:
-                results.append({'filename': file.filename, 'status': 'no text extracted'})
+                results.append({
+                    'filename': file.filename,
+                    'status': 'no text extracted',
+                    'message': 'Could not process the text content.'
+                })
     
     return jsonify({
         'results': results, 

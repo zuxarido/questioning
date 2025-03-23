@@ -1,0 +1,3 @@
+2025-03-23 20:22:06,062 - werkzeug - WARNING -  * Debugger is active!
+2025-03-23 20:22:06,071 - werkzeug - INFO -  * Debugger PIN: 991-541-317
+2025-03-23 20:22:28,064 - werkzeug - INFO - 127.0.0.1 - - [23/Mar/2025 20:22:28] "[35m[1mPOST /api/upload HTTP/1.1[0m" 500 -

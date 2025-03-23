@@ -1,0 +1,18 @@
+2025-03-23 20:47:06,831 - pinecone_plugin_interface.logging - INFO - Discovering subpackages in _NamespacePath(['/Users/sujoydatta/Desktop/rag/questioning/.venv/lib/python3.9/site-packages/pinecone_plugins'])
+2025-03-23 20:47:06,832 - pinecone_plugin_interface.logging - INFO - Looking for plugins in pinecone_plugins.inference
+2025-03-23 20:47:06,875 - pinecone_plugin_interface.logging - INFO - Installing plugin inference into Pinecone
+2025-03-23 20:47:06,893 - werkzeug - WARNING -  * Debugger is active!
+2025-03-23 20:47:06,902 - werkzeug - INFO -  * Debugger PIN: 991-541-317
+2025-03-23 20:47:10,028 - werkzeug - INFO - 127.0.0.1 - - [23/Mar/2025 20:47:10] "GET /api/session HTTP/1.1" 200 -
+2025-03-23 20:47:24,566 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: sentence-transformers/all-MiniLM-L6-v2
+2025-03-23 20:47:28,618 - pinecone.core.openapi.shared.rest - DEBUG - response body: b'{"indexes":[{"name":"rag-index","metric":"cosine","dimension":384,"status":{"ready":true,"state":"Ready"},"host":"rag-index-732ad44.svc.aped-4627-b74a.pinecone.io","spec":{"serverless":{"region":"us-east-1","cloud":"aws"}},"deletion_protection":"disabled"},{"name":"questioning","metric":"cosine","dimension":2000,"status":{"ready":true,"state":"Ready"},"host":"questioning-732ad44.svc.aped-4627-b74a.pinecone.io","spec":{"serverless":{"region":"us-east-1","cloud":"aws"}},"deletion_protection":"disabled"}]}'
+2025-03-23 20:47:29,183 - pinecone.core.openapi.shared.rest - DEBUG - response body: b'{"name":"rag-index","metric":"cosine","dimension":384,"status":{"ready":true,"state":"Ready"},"host":"rag-index-732ad44.svc.aped-4627-b74a.pinecone.io","spec":{"serverless":{"region":"us-east-1","cloud":"aws"}},"deletion_protection":"disabled"}'
+2025-03-23 20:47:29,185 - pinecone_plugin_interface.logging - INFO - Discovering subpackages in _NamespacePath(['/Users/sujoydatta/Desktop/rag/questioning/.venv/lib/python3.9/site-packages/pinecone_plugins'])
+2025-03-23 20:47:29,186 - pinecone_plugin_interface.logging - INFO - Looking for plugins in pinecone_plugins.inference
+2025-03-23 20:47:32,342 - pinecone.core.openapi.shared.rest - DEBUG - response body: b'{"upsertedCount":25}'
+2025-03-23 20:47:32,345 - werkzeug - INFO - 127.0.0.1 - - [23/Mar/2025 20:47:32] "POST /api/upload HTTP/1.1" 200 -
+2025-03-23 20:47:36,024 - pinecone.core.openapi.shared.rest - DEBUG - response body: b'{"results":[],"matches":[],"namespace":"","usage":{"readUnits":1}}'
+2025-03-23 20:47:36,026 - werkzeug - INFO - 127.0.0.1 - - [23/Mar/2025 20:47:36] "POST /api/query HTTP/1.1" 200 -
+2025-03-23 20:47:46,136 - pinecone.core.openapi.shared.rest - DEBUG - response body: b'{"results":[],"matches":[],"namespace":"","usage":{"readUnits":1}}'
+2025-03-23 20:47:46,137 - werkzeug - INFO - 127.0.0.1 - - [23/Mar/2025 20:47:46] "POST /api/query HTTP/1.1" 200 -
+2025-03-23 20:48:43,643 - werkzeug - INFO -  * Detected change in '/Users/sujoydatta/Desktop/rag/questioning/backend/streamlit_app.py', reloading

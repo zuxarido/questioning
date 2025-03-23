@@ -1,0 +1,9 @@
+2025-03-23 20:36:17,969 - pinecone_plugin_interface.logging - INFO - Discovering subpackages in _NamespacePath(['/Users/sujoydatta/Desktop/rag/questioning/.venv/lib/python3.9/site-packages/pinecone_plugins'])
+2025-03-23 20:36:17,969 - pinecone_plugin_interface.logging - INFO - Looking for plugins in pinecone_plugins.inference
+2025-03-23 20:36:17,986 - pinecone_plugin_interface.logging - INFO - Installing plugin inference into Pinecone
+2025-03-23 20:36:18,036 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5001
+ * Running on http://10.200.9.149:5001
+2025-03-23 20:36:18,036 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-03-23 20:36:18,037 - werkzeug - INFO -  * Restarting with stat
