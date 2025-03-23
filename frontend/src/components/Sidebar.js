@@ -1,45 +1,57 @@
-import React from 'react';
-import { Card, Button } from 'react-bootstrap';
+import React, { useState } from 'react';
+import { Button, ListGroup, Badge, Form } from 'react-bootstrap';
+import Upload from './Upload';
 
-function Sidebar({ sessionId, processedFiles, onClearSession }) {
+const Sidebar = ({ processedFiles, onClearSession, isLoading, sessionId, setSessionId, setProcessedFiles, setIsLoading }) => {
+  const [enableOCR, setEnableOCR] = useState(false);
+
   return (
-    <div className="sidebar-container">
-      <Card className="session-card">
-        <Card.Header>
-          <h2>📊 Session Management</h2>
-        </Card.Header>
-        <Card.Body>
-          <div className="session-info">
-            <p className="session-id">Session ID: {sessionId}</p>
-          </div>
-
-          {processedFiles.length > 0 ? (
-            <>
-              <h3>📚 Processed Files</h3>
-              <div className="file-list">
-                {processedFiles.map((file, index) => (
-                  <div key={index} className="file-item">
-                    📄 {file}
-                  </div>
-                ))}
-              </div>
-              <Button 
-                variant="danger" 
-                className="clear-button"
-                onClick={onClearSession}
-              >
-                🗑️ Clear Session
-              </Button>
-            </>
-          ) : (
-            <div className="no-files">
-              <p>📥 No files uploaded yet</p>
-            </div>
-          )}
-        </Card.Body>
-      </Card>
+    <div className="sidebar">
+      <h3>Documents</h3>
+      
+      <div className="ocr-switch">
+        <Form.Check 
+          type="switch"
+          id="ocr-switch"
+          label="Enable OCR"
+          checked={enableOCR}
+          onChange={() => setEnableOCR(!enableOCR)}
+        />
+        <div className="ocr-text">
+          Extract text from images and scanned documents
+        </div>
+      </div>
+      
+      <Upload 
+        sessionId={sessionId} 
+        setSessionId={setSessionId} 
+        setProcessedFiles={setProcessedFiles} 
+        setIsLoading={setIsLoading} 
+      />
+      
+      {processedFiles.length > 0 && (
+        <>
+          <ListGroup className="document-list">
+            {processedFiles.map((filename, index) => (
+              <ListGroup.Item key={index} className="document-item d-flex justify-content-between align-items-center">
+                {filename}
+                <Badge bg="primary" pill className="document-badge">PDF</Badge>
+              </ListGroup.Item>
+            ))}
+          </ListGroup>
+          
+          <Button
+            variant="outline-danger"
+            onClick={onClearSession}
+            disabled={isLoading || processedFiles.length === 0}
+            className="mt-3 w-100"
+          >
+            Clear All Documents
+          </Button>
+        </>
+      )}
     </div>
   );
-}
+};
 
 export default Sidebar;
