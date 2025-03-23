@@ -79,14 +79,21 @@ class TextProcessor:
         ]
         for pattern, replacement in cleaning_steps:
             text = re.sub(pattern, replacement, text)
-        return text.encode("ascii", "ignore").decode().strip()
+        cleaned = text.encode("ascii", "ignore").decode().strip()
+        logger.info(f"Cleaned text length: {len(cleaned)}")
+        return cleaned
     
     @staticmethod
     def create_chunks(text: str) -> List[str]:
         text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=500, chunk_overlap=100, length_function=len, separators=["\n\n", "\n", " ", ""]
+            chunk_size=1000,  # Increased chunk size
+            chunk_overlap=50,  # Reduced overlap
+            length_function=len,
+            separators=["\n\n", "\n", " ", ""]
         )
-        return text_splitter.split_text(text)
+        chunks = text_splitter.split_text(text)
+        logger.info(f"Created {len(chunks)} chunks")
+        return chunks
 
 class PDFProcessor:
     @staticmethod
@@ -99,7 +106,10 @@ class PDFProcessor:
                 text = doc[page_num].get_text()
                 if text.strip():
                     text_parts.append(f"Page {page_num + 1}:\n{text}")
-            return " ".join(text_parts) if text_parts else ""
+                    logger.info(f"Extracted text from page {page_num + 1}, length: {len(text)}")
+            final_text = " ".join(text_parts) if text_parts else ""
+            logger.info(f"Total extracted text length: {len(final_text)}")
+            return final_text
         except Exception as e:
             logger.error(f"Error extracting text: {str(e)}")
             return ""
@@ -118,6 +128,7 @@ class VectorStore:
         # Create a new index with the correct dimensions
         index_name = "rag-index"
         if index_name not in pc.list_indexes().names():
+            logger.info("Creating new Pinecone index")
             pc.create_index(
                 name=index_name,
                 dimension=384,  # dimension for all-MiniLM-L6-v2
@@ -128,24 +139,35 @@ class VectorStore:
                 )
             )
         index = pc.Index(index_name)
-        return PineconeVectorStore(index=index, embedding=embeddings, text_key="text")
+        vector_store = PineconeVectorStore(index=index, embedding=embeddings, text_key="text")
+        logger.info("Vector store initialized successfully")
+        return vector_store
     
     @staticmethod
     def add_texts(vector_store, texts, session_id):
+        logger.info(f"Adding {len(texts)} texts to vector store for session {session_id}")
         metadatas = [{"session_id": session_id} for _ in texts]
         ids = [f"{session_id}_{i}" for i in range(len(texts))]
-        vector_store.add_texts(texts=texts, metadatas=metadatas, ids=ids)
+        try:
+            vector_store.add_texts(texts=texts, metadatas=metadatas, ids=ids)
+            logger.info("Texts added successfully to vector store")
+        except Exception as e:
+            logger.error(f"Error adding texts to vector store: {str(e)}")
+            raise
     
     @staticmethod
     def cleanup_session(session_id):
         if session_id:
+            logger.info(f"Cleaning up session {session_id}")
             index = pc.Index("rag-index")
-            query_response = index.query(
-                vector=[0.0] * 384, filter={"session_id": session_id}, top_k=10000
-            )
-            if query_response.matches:
-                vector_ids = [match.id for match in query_response.matches]
-                index.delete(ids=vector_ids)
+            try:
+                # Delete all vectors with the session_id metadata
+                delete_response = index.delete(
+                    filter={"session_id": session_id}
+                )
+                logger.info(f"Deleted vectors for session {session_id}")
+            except Exception as e:
+                logger.error(f"Error cleaning up session {session_id}: {str(e)}")
 
 class QAChain:
     def __init__(self):
@@ -158,17 +180,43 @@ class QAChain:
         ])
     
     def get_response(self, question: str, session_id: str, vector_store) -> str:
-        retriever = vector_store.as_retriever(search_kwargs={"filter": {"session_id": session_id}, "k": 4})
-        docs = retriever.get_relevant_documents(question)
-        if not docs:
-            return "I couldn't find any relevant information in the documents."
-        qa_chain = (
-            {"context": retriever, "question": RunnablePassthrough()}
-            | self.prompt
-            | self.llm
-            | StrOutputParser()
-        )
-        return qa_chain.invoke(question)
+        logger.info(f"Querying documents for question: {question}")
+        try:
+            # First, let's verify the index exists and has data
+            index = pc.Index("rag-index")
+            stats = index.describe_index_stats()
+            logger.info(f"Index stats: {stats}")
+            
+            # Always use session filter
+            retriever = vector_store.as_retriever(
+                search_kwargs={
+                    "filter": {"session_id": session_id},
+                    "k": 8
+                }
+            )
+            docs = retriever.get_relevant_documents(question)
+            logger.info(f"Retrieved {len(docs)} relevant documents for session {session_id}")
+            
+            if not docs:
+                logger.warning(f"No relevant documents found for session {session_id}")
+                return "I couldn't find any relevant information in the documents."
+            
+            # Log the content of retrieved documents
+            for i, doc in enumerate(docs):
+                logger.info(f"Document {i+1} content: {doc.page_content[:200]}...")
+            
+            qa_chain = (
+                {"context": retriever, "question": RunnablePassthrough()}
+                | self.prompt
+                | self.llm
+                | StrOutputParser()
+            )
+            response = qa_chain.invoke(question)
+            logger.info(f"Generated response: {response[:200]}...")
+            return response
+        except Exception as e:
+            logger.error(f"Error in get_response: {str(e)}")
+            return f"An error occurred while processing your question: {str(e)}"
 
 # Helper function to get or create session
 def get_or_create_session(session_id=None):
@@ -193,17 +241,27 @@ def upload_files():
     if not files:
         return jsonify({'error': 'No files uploaded'}), 400
     
+    # Clean up old session data before processing new files
+    if session_data['processed_files']:
+        logger.info(f"Cleaning up old session data for session {session_id}")
+        VectorStore.cleanup_session(session_id)
+        session_data['processed_files'] = set()
+        session_data['vector_store'] = None
+        session_data['chat_history'] = []  # Also clear chat history
+    
     results = []
     pdf_processor = PDFProcessor()
     text_processor = TextProcessor()
     
     for file in files:
         if file.filename not in session_data['processed_files']:
+            logger.info(f"Processing file: {file.filename}")
             text = pdf_processor.extract_text(file) if file.filename.lower().endswith('.pdf') else ""
             
             # Check if any meaningful text was extracted
             cleaned_text = text_processor.clean_text(text) if text else ""
             if not cleaned_text or len(cleaned_text.strip()) < 50:  # Minimum meaningful text length
+                logger.warning(f"No meaningful text extracted from {file.filename}")
                 results.append({
                     'filename': file.filename,
                     'status': 'no text extracted',
@@ -214,7 +272,9 @@ def upload_files():
             chunks = text_processor.create_chunks(cleaned_text)
             if chunks:
                 if not session_data['vector_store']:
+                    logger.info("Initializing vector store")
                     session_data['vector_store'] = VectorStore.initialize()
+                logger.info(f"Adding {len(chunks)} chunks to vector store")
                 VectorStore.add_texts(session_data['vector_store'], chunks, session_id)
                 session_data['processed_files'].add(file.filename)
                 results.append({
@@ -223,6 +283,7 @@ def upload_files():
                     'chunks': len(chunks)
                 })
             else:
+                logger.warning(f"No chunks created from {file.filename}")
                 results.append({
                     'filename': file.filename,
                     'status': 'no text extracted',
@@ -244,9 +305,11 @@ def query_documents():
     if not question:
         return jsonify({'error': 'No question provided'}), 400
     
+    logger.info(f"Received query request for session {session_id}")
     session_data, session_id = get_or_create_session(session_id)
     
     if not session_data['vector_store']:
+        logger.warning("No vector store initialized for this session")
         return jsonify({
             'answer': "Please upload documents first before asking questions.",
             'chat_history': session_data['chat_history']
