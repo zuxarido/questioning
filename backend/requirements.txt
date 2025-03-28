@@ -11,3 +11,4 @@ pillow
 requests
 flask-cors
 langchain_community
+sentence-transformers
