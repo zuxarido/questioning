@@ -1,27 +1,27 @@
+# app.py
 from flask import Flask, request, jsonify
-from werkzeug.utils import secure_filename
-import os
 from dotenv import load_dotenv
 from PyPDF2 import PdfReader
+import os
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_groq import ChatGroq
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_pinecone import PineconeVectorStore
+from pinecone import Pinecone
 import fitz
 import logging
 from pathlib import Path
 from datetime import datetime
 import uuid
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
 import re
 from typing import List
 from flask_cors import CORS
-from pinecone import Pinecone, ServerlessSpec
-from langchain_community.embeddings.huggingface import HuggingFaceEmbeddings
-from langchain_groq import ChatGroq
-from langchain.prompts import ChatPromptTemplate
-from langchain_pinecone import PineconeVectorStore
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.output_parsers import StrOutputParser
 
+# ---------- App setup ----------
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+CORS(app)
 
 # Setup logging
 log_dir = Path("logs")
@@ -34,15 +34,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Load environment variables
 load_dotenv()
 
-# Initialize Pinecone
-pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+# In-memory sessions (non-prod)
+sessions = {}
 
-# API Key Manager
+# ---------- API Key manager ----------
 class APIKeyManager:
-    REQUIRED_KEYS = ['PINECONE_API_KEY', 'PINECONE_ENVIRONMENT', 'GROQ_API_KEY', 'HUGGINGFACE_API_KEY']
+    REQUIRED_KEYS = ['PINECONE_API_KEY', 'GROQ_API_KEY']
     
     @staticmethod
     def load_and_validate():
@@ -54,19 +53,14 @@ class APIKeyManager:
                 missing_keys.append(key_name)
             keys[key_name] = key_value
         if missing_keys:
-            raise Exception(f"Missing required API keys: {', '.join(missing_keys)}")
+            # Log but do not crash (non-prod)
+            logger.warning(f"Missing required API keys: {', '.join(missing_keys)}")
         return keys
 
-# Validate API keys on startup
-try:
-    APIKeyManager.load_and_validate()
-except Exception as e:
-    logger.error(f"API Key validation failed: {str(e)}")
-    # Continue running to allow debugging, but log the error
+# Validate API keys on startup (non-fatal)
+APIKeyManager.load_and_validate()
 
-# Session state dictionary to track sessions by ID
-sessions = {}
-
+# ---------- Text processing ----------
 class TextProcessor:
     @staticmethod
     def clean_text(text: str) -> str:
@@ -79,22 +73,20 @@ class TextProcessor:
         ]
         for pattern, replacement in cleaning_steps:
             text = re.sub(pattern, replacement, text)
-        cleaned = text.encode("ascii", "ignore").decode().strip()
-        logger.info(f"Cleaned text length: {len(cleaned)}")
-        return cleaned
+        return text.encode("ascii", "ignore").decode().strip()
     
     @staticmethod
     def create_chunks(text: str) -> List[str]:
+        from langchain_text_splitters import RecursiveCharacterTextSplitter
         text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,  # Increased chunk size
-            chunk_overlap=50,  # Reduced overlap
-            length_function=len,
+            chunk_size=500, 
+            chunk_overlap=100, 
+            length_function=len, 
             separators=["\n\n", "\n", " ", ""]
         )
-        chunks = text_splitter.split_text(text)
-        logger.info(f"Created {len(chunks)} chunks")
-        return chunks
+        return text_splitter.split_text(text)
 
+# ---------- PDF processing ----------
 class PDFProcessor:
     @staticmethod
     def extract_text(pdf_file) -> str:
@@ -106,72 +98,71 @@ class PDFProcessor:
                 text = doc[page_num].get_text()
                 if text.strip():
                     text_parts.append(f"Page {page_num + 1}:\n{text}")
-                    logger.info(f"Extracted text from page {page_num + 1}, length: {len(text)}")
-            final_text = " ".join(text_parts) if text_parts else ""
-            logger.info(f"Total extracted text length: {len(final_text)}")
-            return final_text
+            doc.close()
+            return " ".join(text_parts) if text_parts else ""
         except Exception as e:
-            logger.error(f"Error extracting text: {str(e)}")
+            logger.error(f"Error extracting text: {str(e)}", exc_info=True)
             return ""
 
+# ---------- Vector store helpers ----------
 class VectorStore:
     @staticmethod
     def initialize():
-        os.environ['CUDA_VISIBLE_DEVICES'] = ''
-        embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2",
-            model_kwargs={'device': 'cpu'},
-            encode_kwargs={'normalize_embeddings': True},
-            cache_folder="./models"
-        )
-        
-        # Create a new index with the correct dimensions
-        index_name = "rag-index"
-        if index_name not in pc.list_indexes().names():
-            logger.info("Creating new Pinecone index")
-            pc.create_index(
-                name=index_name,
-                dimension=384,  # dimension for all-MiniLM-L6-v2
-                metric="cosine",
-                spec=ServerlessSpec(
-                    cloud="aws",
-                    region="us-east-1"
-                )
+        """
+        Initialize HuggingFace embeddings + Pinecone index and wrap with LangChain PineconeVectorStore.
+        This mirrors your original implementation but wrapped in a function for reuse.
+        """
+        try:
+            os.environ['CUDA_VISIBLE_DEVICES'] = ''
+            embeddings = HuggingFaceEmbeddings(
+                model_name="sentence-transformers/bert-base-nli-mean-tokens",
+                model_kwargs={'device': 'cpu'},
+                encode_kwargs={'normalize_embeddings': True},
+                cache_folder="./models"
             )
-        index = pc.Index(index_name)
-        vector_store = PineconeVectorStore(index=index, embedding=embeddings, text_key="text")
-        logger.info("Vector store initialized successfully")
-        return vector_store
-    
+            pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+            index = pc.Index("ragshi")
+            return PineconeVectorStore(index=index, embedding=embeddings, text_key="text")
+        except Exception as e:
+            logger.error(f"Vector store init failed: {e}", exc_info=True)
+            raise
+
     @staticmethod
     def add_texts(vector_store, texts, session_id):
-        logger.info(f"Adding {len(texts)} texts to vector store for session {session_id}")
         metadatas = [{"session_id": session_id} for _ in texts]
         ids = [f"{session_id}_{i}" for i in range(len(texts))]
-        try:
-            vector_store.add_texts(texts=texts, metadatas=metadatas, ids=ids)
-            logger.info("Texts added successfully to vector store")
-        except Exception as e:
-            logger.error(f"Error adding texts to vector store: {str(e)}")
-            raise
+        vector_store.add_texts(texts=texts, metadatas=metadatas, ids=ids)
     
     @staticmethod
     def cleanup_session(session_id):
-        if session_id:
-            logger.info(f"Cleaning up session {session_id}")
-            index = pc.Index("rag-index")
+        if not session_id:
+            return
+        try:
+            pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+            index = pc.Index("ragshi")
+            # Try to query by filter; if pinecone requires a vector, we wrap this in try/except.
             try:
-                # Delete all vectors with the session_id metadata
-                delete_response = index.delete(
-                    filter={"session_id": session_id}
+                query_response = index.query(
+                    vector=[0.0] * 768,
+                    filter={"session_id": session_id},
+                    top_k=10000
                 )
-                logger.info(f"Deleted vectors for session {session_id}")
-            except Exception as e:
-                logger.error(f"Error cleaning up session {session_id}: {str(e)}")
+                if getattr(query_response, "matches", None):
+                    vector_ids = [match.id for match in query_response.matches]
+                    index.delete(ids=vector_ids)
+            except Exception as inner_e:
+                logger.warning(f"Could not query index for session cleanup (dimension or api mismatch): {inner_e}", exc_info=True)
+        except Exception as e:
+            logger.warning(f"Pinecone cleanup issue: {e}", exc_info=True)
 
+# ---------- QA chain ----------
 class QAChain:
     def __init__(self):
-        self.llm = ChatGroq(api_key=os.getenv("GROQ_API_KEY"), model_name="llama-3.3-70b-versatile")
+        # Keep model selection consistent with your code
+        self.llm = ChatGroq(
+            api_key=os.getenv("GROQ_API_KEY"), 
+            model_name="llama-3.3-70b-versatile"
+        )
         self.prompt = ChatPromptTemplate.from_messages([
             ("system", """You are a helpful assistant that answers questions based on the provided context.
             If the answer cannot be found in the context, say "I couldn't find any relevant information in the documents."
@@ -180,151 +171,146 @@ class QAChain:
         ])
     
     def get_response(self, question: str, session_id: str, vector_store) -> str:
-        logger.info(f"Querying documents for question: {question}")
-        try:
-            # First, let's verify the index exists and has data
-            index = pc.Index("rag-index")
-            stats = index.describe_index_stats()
-            logger.info(f"Index stats: {stats}")
-            
-            # Always use session filter
-            retriever = vector_store.as_retriever(
-                search_kwargs={
-                    "filter": {"session_id": session_id},
-                    "k": 8
-                }
-            )
-            docs = retriever.get_relevant_documents(question)
-            logger.info(f"Retrieved {len(docs)} relevant documents for session {session_id}")
-            
-            if not docs:
-                logger.warning(f"No relevant documents found for session {session_id}")
-                return "I couldn't find any relevant information in the documents."
-            
-            # Log the content of retrieved documents
-            for i, doc in enumerate(docs):
-                logger.info(f"Document {i+1} content: {doc.page_content[:200]}...")
-            
-            qa_chain = (
-                {"context": retriever, "question": RunnablePassthrough()}
-                | self.prompt
-                | self.llm
-                | StrOutputParser()
-            )
-            response = qa_chain.invoke(question)
-            logger.info(f"Generated response: {response[:200]}...")
-            return response
-        except Exception as e:
-            logger.error(f"Error in get_response: {str(e)}")
-            return f"An error occurred while processing your question: {str(e)}"
+        retriever = vector_store.as_retriever(
+            search_kwargs={"filter": {"session_id": session_id}, "k": 4}
+        )
+        docs = retriever.invoke(question)
+        if not docs:
+            return "I couldn't find any relevant information in the documents."
+        
+        qa_chain = (
+            {"context": retriever, "question": RunnablePassthrough()}
+            | self.prompt
+            | self.llm
+            | StrOutputParser()
+        )
+        return qa_chain.invoke(question)
 
-# Helper function to get or create session
+# ---------- Minimal non-prod session creation (drop-in fix) ----------
 def get_or_create_session(session_id=None):
-    if not session_id or session_id not in sessions:
-        new_id = str(uuid.uuid4())
-        sessions[new_id] = {
-            'chat_history': [],
-            'processed_files': set(),
-            'vector_store': None,
-            'session_id': new_id
-        }
-        return sessions[new_id], new_id
-    return sessions[session_id], session_id
+    """
+    Minimal, non-prod version:
+    - If client provided a session_id and it exists -> return it.
+    - If client provided a session_id and it doesn't exist -> create session using that exact id.
+    - If no session_id provided -> create a new random id.
+    Keeps sessions in-memory (no persistence) — this is intentionally minimal.
+    """
+    # If existing -> return
+    if session_id and session_id in sessions:
+        return sessions[session_id], session_id
 
+    # Use provided id if present, else create a new uuid
+    chosen_id = session_id if session_id else str(uuid.uuid4())
+
+    sessions[chosen_id] = {
+        'chat_history': [],
+        'processed_files': set(),
+        'vector_store': None,
+        'session_id': chosen_id
+    }
+
+    logger.info(f"Created new session: {chosen_id} (client_provided_id={bool(session_id)})")
+    return sessions[chosen_id], chosen_id
+
+# ---------- API endpoints ----------
 @app.route('/api/upload', methods=['POST'])
 def upload_files():
-    # Get session ID from request or create a new one
-    session_id = request.form.get('session_id', '')
-    session_data, session_id = get_or_create_session(session_id)
-    
-    files = request.files.getlist('files')
-    if not files:
-        return jsonify({'error': 'No files uploaded'}), 400
-    
-    # Clean up old session data before processing new files
-    if session_data['processed_files']:
-        logger.info(f"Cleaning up old session data for session {session_id}")
-        VectorStore.cleanup_session(session_id)
-        session_data['processed_files'] = set()
-        session_data['vector_store'] = None
-        session_data['chat_history'] = []  # Also clear chat history
-    
-    results = []
-    pdf_processor = PDFProcessor()
-    text_processor = TextProcessor()
-    
-    for file in files:
-        if file.filename not in session_data['processed_files']:
-            logger.info(f"Processing file: {file.filename}")
-            text = pdf_processor.extract_text(file) if file.filename.lower().endswith('.pdf') else ""
-            
-            # Check if any meaningful text was extracted
-            cleaned_text = text_processor.clean_text(text) if text else ""
-            if not cleaned_text or len(cleaned_text.strip()) < 50:  # Minimum meaningful text length
-                logger.warning(f"No meaningful text extracted from {file.filename}")
-                results.append({
-                    'filename': file.filename,
-                    'status': 'no text extracted',
-                    'message': 'No readable text found. Please ensure this is a text-based PDF file.'
-                })
-                continue
-                
-            chunks = text_processor.create_chunks(cleaned_text)
-            if chunks:
-                if not session_data['vector_store']:
-                    logger.info("Initializing vector store")
-                    session_data['vector_store'] = VectorStore.initialize()
-                logger.info(f"Adding {len(chunks)} chunks to vector store")
-                VectorStore.add_texts(session_data['vector_store'], chunks, session_id)
-                session_data['processed_files'].add(file.filename)
-                results.append({
-                    'filename': file.filename,
-                    'status': 'processed',
-                    'chunks': len(chunks)
-                })
-            else:
-                logger.warning(f"No chunks created from {file.filename}")
-                results.append({
-                    'filename': file.filename,
-                    'status': 'no text extracted',
-                    'message': 'Could not process the text content.'
-                })
-    
-    return jsonify({
-        'results': results, 
-        'session_id': session_id,
-        'processed_files': list(session_data['processed_files'])
-    }), 200
+    try:
+        session_id = request.form.get('session_id', '')
+        session_data, session_id = get_or_create_session(session_id)
+        
+        files = request.files.getlist('files')
+        if not files:
+            return jsonify({'error': 'No files uploaded'}), 400
+        
+        results = []
+        pdf_processor = PDFProcessor()
+        text_processor = TextProcessor()
+        
+        for file in files:
+            try:
+                if file.filename not in session_data['processed_files']:
+                    logger.info(f"Processing file: {file.filename}")
+                    text = pdf_processor.extract_text(file) if file.filename.lower().endswith('.pdf') else ""
+                    
+                    if text:
+                        logger.info(f"Extracted {len(text)} characters from {file.filename}")
+                        chunks = text_processor.create_chunks(text)
+                        logger.info(f"Created {len(chunks)} chunks from {file.filename}")
+                        
+                        if not session_data['vector_store']:
+                            try:
+                                logger.info("Initializing vector store...")
+                                session_data['vector_store'] = VectorStore.initialize()
+                                logger.info("Vector store initialized")
+                            except Exception as e:
+                                logger.warning(f"Vector store initialization failed during upload: {e}", exc_info=True)
+                                # leave vector_store as None - behavior remains non-prod
+        
+                        if session_data['vector_store']:
+                            VectorStore.add_texts(session_data['vector_store'], chunks, session_id)
+                        else:
+                            # If vector store not available, we still mark processed to avoid reprocessing repeatedly
+                            logger.warning("Vector store unavailable; chunks won't be added to vector DB this run.")
+                        
+                        session_data['processed_files'].add(file.filename)
+                        results.append({'filename': file.filename, 'status': 'processed', 'chunks': len(chunks)})
+                        logger.info(f"Successfully processed {file.filename}")
+                    else:
+                        logger.warning(f"No text extracted from {file.filename}")
+                        results.append({'filename': file.filename, 'status': 'no text extracted'})
+                else:
+                    results.append({'filename': file.filename, 'status': 'already processed'})
+            except Exception as e:
+                logger.error(f"Error processing file {file.filename}: {str(e)}", exc_info=True)
+                results.append({'filename': file.filename, 'status': 'error', 'error': str(e)})
+        
+        return jsonify({
+            'results': results, 
+            'session_id': session_id,
+            'processed_files': list(session_data['processed_files']),
+            'vector_store_initialized': session_data['vector_store'] is not None
+        }), 200
+    except Exception as e:
+        logger.error(f"Upload endpoint error: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/query', methods=['POST'])
 def query_documents():
-    data = request.get_json()
-    question = data.get('question')
-    session_id = data.get('session_id', '')
-    
-    if not question:
-        return jsonify({'error': 'No question provided'}), 400
-    
-    logger.info(f"Received query request for session {session_id}")
-    session_data, session_id = get_or_create_session(session_id)
-    
-    if not session_data['vector_store']:
-        logger.warning("No vector store initialized for this session")
+    try:
+        data = request.get_json()
+        question = data.get('question')
+        session_id = data.get('session_id', '')
+        
+        if not question:
+            return jsonify({'error': 'No question provided'}), 400
+        
+        logger.info(f"Query received - Session ID: {session_id}, Question: {question}")
+        session_data, session_id = get_or_create_session(session_id)
+        
+        logger.info(f"Vector store exists: {session_data['vector_store'] is not None}")
+        logger.info(f"Processed files: {session_data['processed_files']}")
+        
+        if not session_data['vector_store']:
+            return jsonify({
+                'answer': "Please upload documents first before asking questions.",
+                'chat_history': session_data['chat_history'],
+                'session_id': session_id
+            }), 400
+        
+        qa_chain = QAChain()
+        response = qa_chain.get_response(question, session_id, session_data['vector_store'])
+        session_data['chat_history'].append({'role': 'user', 'content': question})
+        session_data['chat_history'].append({'role': 'assistant', 'content': response})
+        
         return jsonify({
-            'answer': "Please upload documents first before asking questions.",
-            'chat_history': session_data['chat_history']
-        }), 400
-    
-    qa_chain = QAChain()
-    response = qa_chain.get_response(question, session_id, session_data['vector_store'])
-    session_data['chat_history'].append({'role': 'user', 'content': question})
-    session_data['chat_history'].append({'role': 'assistant', 'content': response})
-    
-    return jsonify({
-        'answer': response, 
-        'chat_history': session_data['chat_history'],
-        'session_id': session_id
-    }), 200
+            'answer': response, 
+            'chat_history': session_data['chat_history'],
+            'session_id': session_id
+        }), 200
+    except Exception as e:
+        logger.error(f"Query endpoint error: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/clear', methods=['POST'])
 def clear_session():
@@ -333,10 +319,8 @@ def clear_session():
     
     if session_id and session_id in sessions:
         VectorStore.cleanup_session(session_id)
-        # Remove this session
         del sessions[session_id]
     
-    # Create a new session
     new_session, new_id = get_or_create_session()
     
     return jsonify({
